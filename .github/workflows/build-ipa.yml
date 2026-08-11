@@ -1,0 +1,142 @@
+name: Build Unsigned IPA
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
+
+jobs:
+  build-ipa:
+    runs-on: macos-26
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          ref: ${{ github.head_ref || github.ref_name }}
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Regenerate Xcode project from project.yml
+        run: xcodegen generate --spec project.yml
+
+      - name: Sync regenerated project back to branch
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TARGET_BRANCH: ${{ github.head_ref || github.ref_name }}
+        run: |
+          if git diff --quiet -- TiebaPure.xcodeproj; then
+            echo "TiebaPure.xcodeproj already matches project.yml"
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add TiebaPure.xcodeproj
+            git commit -m "chore: regenerate Xcode project for the iOS 15.0 deployment target"
+            git push origin "HEAD:$TARGET_BRANCH"
+          fi
+
+      - name: Build and package unsigned IPA
+        id: build
+        continue-on-error: true
+        run: |
+          scripts/package-unsigned-ipa.sh > build.log 2>&1 || {
+            echo "" >> build.log
+            echo "PACKAGING STEP FAILED" >> build.log
+            exit 1
+          }
+
+      - name: Verify IPA payload
+        if: steps.build.outcome == 'success'
+        id: verify
+        continue-on-error: true
+        run: |
+          set -e
+          ls -lh build/TiebaPure-unsigned.ipa
+          shasum -a 256 build/TiebaPure-unsigned.ipa | tee ipa.sha256
+          rm -rf /tmp/ipa-check && mkdir -p /tmp/ipa-check
+          unzip -q build/TiebaPure-unsigned.ipa -d /tmp/ipa-check
+          APP=/tmp/ipa-check/Payload/TiebaPure.app
+          MIN="$(/usr/libexec/PlistBuddy -c 'Print :MinimumOSVersion' "$APP/Info.plist")"
+          echo "App MinimumOSVersion=$MIN" | tee minos.txt
+          test "$MIN" = "15.0"
+          EXT_MIN="$(/usr/libexec/PlistBuddy -c 'Print :MinimumOSVersion' "$APP/PlugIns/TiebaPureOpenIn.appex/Info.plist")"
+          echo "Extension MinimumOSVersion=$EXT_MIN" | tee -a minos.txt
+          test "$EXT_MIN" = "15.0"
+          touch ipa.ok
+
+      - name: Upload unsigned IPA artifact
+        if: steps.verify.outcome == 'success'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: TiebaPure-unsigned-ios15.ipa
+          path: build/TiebaPure-unsigned.ipa
+          retention-days: 30
+
+      - name: Upload build log
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: build-ipa-log
+          path: build.log
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Comment build result on PR
+        if: always() && github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          BUILD_OUTCOME: ${{ steps.build.outcome }}
+          VERIFY_OUTCOME: ${{ steps.verify.outcome || 'skipped' }}
+        run: |
+          {
+            echo "<!-- tiebapure-ipa-build -->"
+            if [ "$BUILD_OUTCOME" = "success" ] && [ "$VERIFY_OUTCOME" = "success" ] && [ -f ipa.ok ]; then
+              echo "### :white_check_mark: iOS 15.0 编译打包成功"
+              echo
+              echo '```'
+              cat minos.txt
+              cat ipa.sha256
+              ls -lh build/TiebaPure-unsigned.ipa | awk '{print "IPA size:", $5}'
+              echo '```'
+              echo
+              echo '未签名 IPA 已上传为本工作流的构建产物（artifact）：`TiebaPure-unsigned-ios15.ipa`'
+            else
+              echo "### :x: iOS 15.0 编译失败（build=$BUILD_OUTCOME verify=$VERIFY_OUTCOME）"
+              echo
+              echo "error 行总数：$(grep -c 'error:' build.log || true)"
+              echo
+              echo '**错误清单（去重，最多 100 条）：**'
+              echo
+              echo '```'
+              grep -E 'error:' build.log | sort -u | head -100
+              echo '```'
+              echo
+              echo '**日志末尾 40 行：**'
+              echo
+              echo '```'
+              tail -40 build.log
+              echo '```'
+            fi
+          } > comment.md
+          head -c 60000 comment.md > comment-trimmed.md
+          gh pr comment "$PR_NUMBER" --body-file comment-trimmed.md
+
+      - name: Propagate failure
+        if: always()
+        run: |
+          test "${{ steps.build.outcome }}" = "success"
+          test -f ipa.ok
