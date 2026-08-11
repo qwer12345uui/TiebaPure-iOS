@@ -45,6 +45,7 @@ GLOBAL_RULES = [
     ("NavigationStack(path:)", r"\bNavigationStack\(\s*path:", "CompatiblePathNavigationStack(path:"),
     ("NavigationStack", r"\bNavigationStack\s*\{", "CompatibleNavigationStack {"),
     ("ShareLink", r"\bShareLink\(\s*item:", "CompatibleShareLink(item:"),
+    ("UnevenRoundedRectangle", r"\bUnevenRoundedRectangle\(", "CompatibleUnevenRoundedRectangle("),
 ]
 
 
@@ -61,6 +62,9 @@ def apply_global_rules(rel, text):
 #   ("exact", old, new, label)                    — literal replace-all
 #   ("regex", pattern, replacement, marker, label) — marker only for status
 #   ("sizeThatFits",)                              — prepend @available(iOS 16)
+#   ("extractChain", pattern, type, method, marker, label)
+#                                                  — split a long modifier
+#                                                    chain into an extension
 # ---------------------------------------------------------------------------
 PRESENTATION_DETENTS_OLD = (
     "        } else {\n"
@@ -146,23 +150,56 @@ FILE_RULES = {
         ("regex",
          r"\bPhotosPicker\(\s*selection:\s*\$photoSelection,\s*maxSelectionCount:\s*remaining,\s*matching:\s*\.images,\s*preferredItemEncoding:\s*\.current\s*\)",
          "CompatiblePhotosPicker(\n                        selection: $photoSelection,\n                        maxSelectionCount: remaining\n                    )",
-         "CompatiblePhotosPicker(",
+         r"CompatiblePhotosPicker\(",
          "photos picker presentation"),
         ("regex",
          r'\bTextField\("请输入帖子标题",\s*text:\s*\$title,\s*axis:\s*\.vertical\)',
          'CompatibleVerticalTextField("请输入帖子标题", text: $title, lineLimit: 1...3)',
-         "CompatibleVerticalTextField(",
+         r"CompatibleVerticalTextField\(",
          "vertical title field"),
         ("regex",
          r"\n[ \t]*\.lineLimit\(1\.\.\.3\)",
          "",
-         "CompatibleVerticalTextField(",
+         r"CompatibleVerticalTextField\(",
          "title field lineLimit chain"),
         ("regex",
          r"\.loadTransferable\(\s*type:\s*Data\.self\s*\)",
-         ".loadImageData()",
-         ".loadImageData()",
+         r"\.loadImageData\(\)",
+         r"\.loadImageData\(\)",
          "photo data loading"),
+    ],
+    "TiebaPure/Features/Profile/ThreadFavoritesView.swift": [
+        ("regex",
+         r"(?m)^([ \t]*)if isEditing \{\n[ \t]*ToolbarItem\(placement: \.topBarLeading\) \{",
+         r"\1ToolbarItem(placement: .topBarLeading) {\n\1    if isEditing {",
+         r"ToolbarItem\(placement: \.topBarLeading\) \{\s*\n[ \t]*if isEditing \{",
+         "select-all toolbar item condition"),
+        ("regex",
+         r"(?m)^([ \t]*)if isEditing == false, libraryStore\.readingPositions\.isEmpty == false \{\n[ \t]*ToolbarItem\(placement: \.topBarTrailing\) \{",
+         r"\1ToolbarItem(placement: .topBarTrailing) {\n\1    if isEditing == false, libraryStore.readingPositions.isEmpty == false {",
+         r"ToolbarItem\(placement: \.topBarTrailing\) \{\s*\n[ \t]*if isEditing == false, libraryStore",
+         "library menu toolbar item condition"),
+        ("regex",
+         r"(?m)^([ \t]*)if visibleFavorites\.isEmpty == false \|\| isEditing \{\n[ \t]*ToolbarItem\(placement: \.topBarTrailing\) \{",
+         r"\1ToolbarItem(placement: .topBarTrailing) {\n\1    if visibleFavorites.isEmpty == false || isEditing {",
+         r"ToolbarItem\(placement: \.topBarTrailing\) \{\s*\n[ \t]*if visibleFavorites\.isEmpty == false \|\| isEditing \{",
+         "edit button toolbar item condition"),
+    ],
+    "TiebaPure/Features/Profile/BrowsingHistoryView.swift": [
+        ("extractChain",
+         r"(\.task \{\s*await historyStore\.waitForPendingMutations\(\).*?)(?=\s*\.fullScreenInteractiveNavigationPop\(\))",
+         "BrowsingHistoryView",
+         "applyingHistoryLifecycleObservers",
+         r"func applyingHistoryLifecycleObservers\(\)",
+         "split lifecycle observers chain"),
+    ],
+    "TiebaPure/Features/Profile/UserProfileView.swift": [
+        ("extractChain",
+         r"(\.task \{\s*guard didLoad == false else \{ return \}\s*await reload\(\)\s*\}\s*\.onChange\(of: account\?\.sessionIdentity\).*?)(?=\s*\.onAppear \{ navigationSourceLifecycle\.didAppear\(\) \})",
+         "UserProfileView",
+         "applyingProfileObservers",
+         r"func applyingProfileObservers\(\)",
+         "split profile observers chain"),
     ],
     "TiebaPure/Features/Media/ImageViewer.swift": [
         ("sizeThatFits",),
@@ -200,9 +237,32 @@ def apply_regex(text, pattern, replacement, marker):
     new_text, count = re.subn(pattern, replacement, text)
     if count:
         return new_text, "applied"
-    if marker in text:
+    if re.search(marker, text):
         return text, "already"
     return text, "missing"
+
+
+def apply_extract_chain(text, pattern, type_name, method_name, marker):
+    # The extracted chain is re-emitted inside the appended extension method,
+    # which itself matches `pattern` — so the marker must be checked first.
+    if re.search(marker, text):
+        return text, "already"
+    match = re.search(pattern, text, re.S)
+    if not match:
+        return text, "missing"
+    captured = match.group(1)
+    call = "\n            .%s()" % method_name
+    text = text[:match.start()] + call + text[match.end():]
+    method = (
+        "\n\nprivate extension %s {\n"
+        "    func %s() -> some View {\n"
+        "        self\n"
+        "            %s\n"
+        "    }\n"
+        "}\n"
+    ) % (type_name, method_name, captured)
+    text = text.rstrip() + method + "\n"
+    return text, "applied"
 
 
 def apply_size_that_fits(text):
@@ -241,6 +301,9 @@ def process_file(path, rules, use_globals):
         elif rule[0] == "sizeThatFits":
             label = "sizeThatFits availability"
             text, status = apply_size_that_fits(text)
+        elif rule[0] == "extractChain":
+            _, pattern, type_name, method_name, marker, label = rule
+            text, status = apply_extract_chain(text, pattern, type_name, method_name, marker)
         else:
             continue
         note("  [%s] %s: %s" % (status, rel, label))

@@ -692,6 +692,71 @@ private extension NSItemProvider {
     }
 }
 
+// MARK: - UnevenRoundedRectangle
+
+/// `UnevenRoundedRectangle` deployable to iOS 15. Draws the same per-corner
+/// rounded shape directly; corner-style differences are imperceptible at the
+/// radii used by the subpost sheet.
+struct CompatibleUnevenRoundedRectangle: Shape {
+    var topLeadingRadius: CGFloat = 0
+    var bottomLeadingRadius: CGFloat = 0
+    var bottomTrailingRadius: CGFloat = 0
+    var topTrailingRadius: CGFloat = 0
+
+    func path(in rect: CGRect) -> Path {
+        let maxRadius = max(0, min(rect.width, rect.height) / 2)
+        let topLeading = max(0, min(topLeadingRadius, maxRadius))
+        let topTrailing = max(0, min(topTrailingRadius, maxRadius))
+        let bottomTrailing = max(0, min(bottomTrailingRadius, maxRadius))
+        let bottomLeading = max(0, min(bottomLeadingRadius, maxRadius))
+
+        var path = Path()
+        path.move(to: CGPoint(x: rect.minX + topLeading, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.maxX - topTrailing, y: rect.minY))
+        if topTrailing > 0 {
+            path.addArc(
+                center: CGPoint(x: rect.maxX - topTrailing, y: rect.minY + topTrailing),
+                radius: topTrailing,
+                startAngle: .degrees(-90),
+                endAngle: .degrees(0),
+                clockwise: false
+            )
+        }
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY - bottomTrailing))
+        if bottomTrailing > 0 {
+            path.addArc(
+                center: CGPoint(x: rect.maxX - bottomTrailing, y: rect.maxY - bottomTrailing),
+                radius: bottomTrailing,
+                startAngle: .degrees(0),
+                endAngle: .degrees(90),
+                clockwise: false
+            )
+        }
+        path.addLine(to: CGPoint(x: rect.minX + bottomLeading, y: rect.maxY))
+        if bottomLeading > 0 {
+            path.addArc(
+                center: CGPoint(x: rect.minX + bottomLeading, y: rect.maxY - bottomLeading),
+                radius: bottomLeading,
+                startAngle: .degrees(90),
+                endAngle: .degrees(180),
+                clockwise: false
+            )
+        }
+        path.addLine(to: CGPoint(x: rect.minX, y: rect.minY + topLeading))
+        if topLeading > 0 {
+            path.addArc(
+                center: CGPoint(x: rect.minX + topLeading, y: rect.minY + topLeading),
+                radius: topLeading,
+                startAngle: .degrees(180),
+                endAngle: .degrees(270),
+                clockwise: false
+            )
+        }
+        path.closeSubpath()
+        return path
+    }
+}
+
 // MARK: - Split-layout capability
 
 enum ReaderSplitCapability {
