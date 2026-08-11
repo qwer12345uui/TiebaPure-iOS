@@ -85,15 +85,26 @@ extension Font {
 /// emulation inside `CompatiblePathNavigationStack`. Builders registered by
 /// `.compatibleNavigationDestination(for:)` are looked up when a path entry
 /// is pushed.
-final class CompatibleNavigationDestinations {
+final class CompatibleNavigationDestinations: ObservableObject {
     private var builders: [ObjectIdentifier: (Any) -> AnyView] = [:]
+
+    /// The legacy `NavigationLink` can ask for its destination before SwiftUI
+    /// has evaluated the source view's destination modifier. Publishing the
+    /// first registration lets a deferred destination re-evaluate instead of
+    /// permanently caching an `EmptyView` on iOS 15.
+    @Published private(set) var registrationGeneration = 0
 
     func register<Route: Hashable, Destination: View>(
         _ type: Route.Type,
         builder: @escaping (Route) -> Destination
     ) {
-        builders[ObjectIdentifier(type)] = { value in
+        let identifier = ObjectIdentifier(type)
+        let isNewRegistration = builders[identifier] == nil
+        builders[identifier] = { value in
             AnyView(builder(value as! Route))
+        }
+        if isNewRegistration {
+            registrationGeneration &+= 1
         }
     }
 
@@ -120,10 +131,12 @@ private struct CompatibleDestinationRegistration<Route: Hashable, Destination: V
     @Environment(\.compatibleNavigationDestinations) private var destinations
 
     func body(content: Content) -> some View {
-        // Re-register on every evaluation so the builder closure always
-        // captures the view's current state.
-        destinations?.register(type, builder: builder)
-        return content
+        // Register after the source view enters the hierarchy. Publishing from
+        // `body` is undefined in SwiftUI and can itself destabilize legacy
+        // NavigationView updates on iOS 15.
+        content.onAppear {
+            destinations?.register(type, builder: builder)
+        }
     }
 }
 
@@ -206,11 +219,20 @@ private struct CompatibleNavigationChain<Route: Hashable>: View {
     }
 
     private func destination(at index: Int) -> AnyView {
-        guard path.count > index,
-              let view = destinations.destination(for: path[index]) else {
+        guard path.count > index else {
             return AnyView(EmptyView())
         }
-        return AnyView(view.background(nextLink(after: index)))
+        // Do not resolve the builder in the NavigationLink closure. On iOS 15
+        // that closure may run before the source modifier registers its
+        // builder, and the resulting EmptyView is then retained by UIKit for
+        // the life of the pushed controller.
+        return AnyView(
+            CompatibleDeferredNavigationDestination(
+                route: path[index],
+                destinations: destinations
+            )
+            .background(nextLink(after: index))
+        )
     }
 
     private func nextLink(after index: Int) -> AnyView {
@@ -218,6 +240,28 @@ private struct CompatibleNavigationChain<Route: Hashable>: View {
             return AnyView(EmptyView())
         }
         return link(at: index + 1)
+    }
+}
+
+/// Resolves a legacy path-navigation destination only after it becomes visible.
+/// This avoids the iOS 15 NavigationLink eager-destination behavior that would
+/// otherwise turn a valid route into a permanently blank pushed page.
+private struct CompatibleDeferredNavigationDestination<Route: Hashable>: View {
+    let route: Route
+    @ObservedObject var destinations: CompatibleNavigationDestinations
+
+    var body: some View {
+        // Establish an observation dependency before requesting the builder.
+        // A first registration performed during the source view's evaluation
+        // then invalidates this view and supplies the real destination.
+        _ = destinations.registrationGeneration
+        if let view = destinations.destination(for: route) {
+            view
+        } else {
+            ProgressView()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .accessibilityLabel("正在打开页面")
+        }
     }
 }
 

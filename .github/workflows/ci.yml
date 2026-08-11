@@ -86,6 +86,7 @@ jobs:
             -parallel-testing-enabled NO \
             test \
             -only-testing:TiebaPureUITests/TiebaPureUITests/testLaunchShowsHomeWithoutLoginAndRootTabs \
+            -only-testing:TiebaPureUITests/TiebaPureUITests/testHomePathNavigationPresentsLoadedThreadDetail \
             -only-testing:TiebaPureUITests/TiebaPureUITests/testSearchResultRoutesToMatchedReply \
             -only-testing:TiebaPureUITests/TiebaPureUITests/testForumLatestMenuSwitchesReplyPublishAndFeaturedCategories \
             -only-testing:TiebaPureUITests/TiebaPureUITests/testLoggedInUserCanToggleProfileFollowState \

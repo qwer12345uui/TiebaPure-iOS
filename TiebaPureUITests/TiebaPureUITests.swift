@@ -49,6 +49,29 @@ final class TiebaPureUITests: XCTestCase {
         )
     }
 
+    func testHomePathNavigationPresentsLoadedThreadDetail() {
+        let app = launchApp()
+        let firstThread = app.buttons["确定性主帖：回复筛选与媒体布局"]
+        XCTAssertTrue(firstThread.waitForExistence(timeout: 45))
+
+        firstThread.tap()
+
+        let detailScrollView = app.scrollViews["thread-detail-scroll-view"]
+        XCTAssertTrue(
+            detailScrollView.waitForExistence(timeout: 10),
+            "打开首页帖子后必须渲染详情滚动内容，不能只进入空白导航页"
+        )
+        XCTAssertTrue(
+            app.descendants(matching: .any)["thread-main-text"].waitForExistence(timeout: 8),
+            "帖子详情页必须加载主帖内容"
+        )
+
+        let backButton = app.navigationBars.buttons.firstMatch
+        XCTAssertTrue(backButton.waitForExistence(timeout: 5))
+        backButton.tap()
+        XCTAssertTrue(app.navigationBars["首页"].waitForExistence(timeout: 5))
+    }
+
     func testVoiceSummaryRequiresDetailAndPlaybackStatesRemainAccessible() {
         let app = launchApp(scenario: "voicePlayback")
         let successIdentifier = "voice-playback-\(String(repeating: "a", count: 32))"
