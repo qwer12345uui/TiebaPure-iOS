@@ -66,7 +66,7 @@ struct UserProfileView: View {
     @State private var pendingProfileEditRequest: UserProfileEditRequest?
 
     var body: some View {
-        Group {
+        let withPresentation = Group {
             if isLoadingProfile, profile == nil {
                 ReaderStateView.loading("正在加载用户资料")
             } else if let profileError, profile == nil {
@@ -156,7 +156,9 @@ struct UserProfileView: View {
             }
         }
         
-            .applyingProfileObservers()
+        return applyingProfileObservers(
+            to: withPresentation
+        )
         .onAppear { navigationSourceLifecycle.didAppear() }
         .onDisappear {
             guard navigationSourceLifecycle.shouldTearDown(
@@ -1527,8 +1529,8 @@ enum UserProfileCountText {
 }
 
 private extension UserProfileView {
-    func applyingProfileObservers() -> some View {
-        self
+    func applyingProfileObservers<Content: View>(to content: Content) -> some View {
+        content
             .task {
             guard didLoad == false else { return }
             await reload()

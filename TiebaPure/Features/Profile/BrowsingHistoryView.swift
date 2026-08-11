@@ -465,8 +465,8 @@ private struct BrowsingHistoryRow: View {
 }
 
 private extension BrowsingHistoryView {
-    func applyingHistoryLifecycleObservers() -> some View {
-        self
+    func applyingHistoryLifecycleObservers<Content: View>(to content: Content) -> some View {
+        content
             .task {
             await historyStore.waitForPendingMutations()
             guard Task.isCancelled == false else { return }
