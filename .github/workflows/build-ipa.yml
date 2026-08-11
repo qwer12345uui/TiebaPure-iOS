@@ -27,24 +27,27 @@ jobs:
         with:
           ref: ${{ github.head_ref || github.ref_name }}
 
+      - name: Apply iOS 15 compatibility patches
+        run: python3 scripts/apply_ios15_fixes.py | tee /tmp/patch-report.txt
+
       - name: Install XcodeGen
         run: brew install xcodegen
 
       - name: Regenerate Xcode project from project.yml
         run: xcodegen generate --spec project.yml
 
-      - name: Sync regenerated project back to branch
+      - name: Sync patched sources and regenerated project back to branch
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TARGET_BRANCH: ${{ github.head_ref || github.ref_name }}
         run: |
-          if git diff --quiet -- TiebaPure.xcodeproj; then
-            echo "TiebaPure.xcodeproj already matches project.yml"
+          if [ -z "$(git status --porcelain)" ]; then
+            echo "Sources already up to date"
           else
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add TiebaPure.xcodeproj
-            git commit -m "chore: regenerate Xcode project for the iOS 15.0 deployment target"
+            git add -A
+            git commit -m "chore: apply iOS 15 compatibility fixes and regenerate Xcode project"
             git push origin "HEAD:$TARGET_BRANCH"
           fi
 
@@ -119,16 +122,22 @@ jobs:
               echo
               echo "error 行总数：$(grep -c 'error:' build.log || true)"
               echo
-              echo '**错误清单（去重，最多 100 条）：**'
+              echo '**错误清单（去重，最多 300 条）：**'
               echo
               echo '```'
-              grep -E 'error:' build.log | sort -u | head -100
+              grep -E 'error:' build.log | sed 's|/Users/runner/work/TiebaPure-iOS/TiebaPure-iOS/||g' | sort -u | head -300
+              echo '```'
+              echo
+              echo '**补丁应用情况：**'
+              echo
+              echo '```'
+              grep -E 'MISSING|missing|Patched|already patched' /tmp/patch-report.txt 2>/dev/null || echo '（无报告）'
               echo '```'
               echo
               echo '**日志末尾 40 行：**'
               echo
               echo '```'
-              tail -40 build.log
+              grep -vE 'swift-frontend|CompileSwift|command line' build.log | tail -40 | cut -c1-400
               echo '```'
             fi
           } > comment.md

@@ -26,6 +26,15 @@ jobs:
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
 
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Apply iOS 15 compatibility patches
+        run: python3 scripts/apply_ios15_fixes.py
+
+      - name: Regenerate Xcode project from project.yml
+        run: xcodegen generate --spec project.yml
+
       - name: Boot iPhone simulator
         run: |
           source scripts/ci-simulator.sh

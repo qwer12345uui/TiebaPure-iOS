@@ -71,6 +71,9 @@ targets:
     settings:
       base:
         GENERATE_INFOPLIST_FILE: YES
+        # Test bundles run on the latest simulator; the iOS 15.0 floor applies
+        # to the shipped app and extension only.
+        IPHONEOS_DEPLOYMENT_TARGET: "17.0"
   TiebaPureUITests:
     type: bundle.ui-testing
     platform: iOS
@@ -81,6 +84,7 @@ targets:
     settings:
       base:
         GENERATE_INFOPLIST_FILE: YES
+        IPHONEOS_DEPLOYMENT_TARGET: "17.0"
 schemes:
   TiebaPure:
     build:
