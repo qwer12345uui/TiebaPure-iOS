@@ -130,36 +130,8 @@ struct BrowsingHistoryView: View {
         } message: {
             Text("未能保存浏览历史更改，请稍后重试。")
         }
-        .task {
-            await historyStore.waitForPendingMutations()
-            guard Task.isCancelled == false else { return }
-            historyStore.reload()
-            dateFilterReferenceDate = Date()
-        }
-        .compatibleOnChange(of: visibleThreadIDs) { _, _ in
-            synchronizeSelection()
-        }
-        .compatibleOnChange(of: isEditing) { _, editing in
-            if editing == false {
-                selectedThreadIDs.removeAll()
-            }
-        }
-        .compatibleOnChange(of: blocklistStore.entries) { _, _ in
-            guard let activeEntry,
-                  BrowsingHistoryListPolicy.shouldKeep(
-                    activeEntry,
-                    blocklist: currentBlocklist
-                  ) == false else { return }
-            self.activeEntry = nil
-        }
-        .compatibleOnChange(of: scenePhase) { _, phase in
-            if phase == .active {
-                dateFilterReferenceDate = Date()
-            }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .NSCalendarDayChanged)) { _ in
-            dateFilterReferenceDate = Date()
-        }
+        
+            .applyingHistoryLifecycleObservers()
         .fullScreenInteractiveNavigationPop()
     }
 
@@ -491,3 +463,40 @@ private struct BrowsingHistoryRow: View {
         ([entry.title] + metadataItems).joined(separator: "，")
     }
 }
+
+private extension BrowsingHistoryView {
+    func applyingHistoryLifecycleObservers() -> some View {
+        self
+            .task {
+            await historyStore.waitForPendingMutations()
+            guard Task.isCancelled == false else { return }
+            historyStore.reload()
+            dateFilterReferenceDate = Date()
+        }
+        .compatibleOnChange(of: visibleThreadIDs) { _, _ in
+            synchronizeSelection()
+        }
+        .compatibleOnChange(of: isEditing) { _, editing in
+            if editing == false {
+                selectedThreadIDs.removeAll()
+            }
+        }
+        .compatibleOnChange(of: blocklistStore.entries) { _, _ in
+            guard let activeEntry,
+                  BrowsingHistoryListPolicy.shouldKeep(
+                    activeEntry,
+                    blocklist: currentBlocklist
+                  ) == false else { return }
+            self.activeEntry = nil
+        }
+        .compatibleOnChange(of: scenePhase) { _, phase in
+            if phase == .active {
+                dateFilterReferenceDate = Date()
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .NSCalendarDayChanged)) { _ in
+            dateFilterReferenceDate = Date()
+        }
+    }
+}
+

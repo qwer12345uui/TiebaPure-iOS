@@ -155,72 +155,8 @@ struct UserProfileView: View {
                 }
             }
         }
-        .task {
-            guard didLoad == false else { return }
-            await reload()
-        }
-        .onChange(of: account?.sessionIdentity) { _ in
-            cancelRequests()
-            requestGeneration += 1
-            profile = nil
-            threads = []
-            deletionTargetsByThreadID = [:]
-            nextPage = 1
-            hasMoreThreads = true
-            threadsVisibility = .visible
-            isLoadingProfile = false
-            isLoadingThreads = false
-            profileError = nil
-            threadsError = nil
-            userActionError = nil
-            isUpdatingFollow = false
-            didLoad = false
-            selectedThread = nil
-            selectedForum = nil
-            selectedRelationshipKind = nil
-            showsProfileEditor = false
-            pendingProfileEditRequest = nil
-            Task { await reload() }
-        }
-        .onChange(of: blocklistStore.entries) { _ in
-            threads.removeAll { TiebaContentFilter.shouldKeep(thread: $0) == false }
-            if var currentProfile = profile {
-                currentProfile.followedForums.removeAll {
-                    TiebaContentFilter.shouldKeep(forum: $0) == false
-                }
-                profile = currentProfile
-            }
-        }
-        .onReceive(environment.socialRelationshipState.userFollowDidChange) { change in
-            guard change.accountID == account?.id, let currentProfile = profile else { return }
-            if SocialRelationshipState.sameUser(currentProfile.user, change.user) {
-                applyFollowState(change.isFollowed)
-            } else if currentProfile.isCurrentUser {
-                profile?.followingCount = max(
-                    currentProfile.followingCount + (change.isFollowed ? 1 : -1),
-                    0
-                )
-            }
-        }
-        .onReceive(environment.socialRelationshipState.forumFollowDidChange) { change in
-            guard change.accountID == account?.id, profile?.isCurrentUser == true else { return }
-            applyForumFollowChange(change)
-        }
-        .onReceive(environment.socialRelationshipState.userMutationActivityDidChange) { change in
-            guard change.accountID == account?.id,
-                  let profile,
-                  SocialRelationshipState.sameUser(profile.user, change.user) else { return }
-            isUpdatingFollow = change.isPending
-        }
-        .onReceive(environment.ownThreadMutationState.didChange) { event in
-            guard event.accountID == account?.id else { return }
-            switch event.outcome {
-            case .deleted:
-                removeDeletedThread(event.threadID)
-            case .needsRefresh:
-                requestReadOnlyThreadRefresh()
-            }
-        }
+        
+            .applyingProfileObservers()
         .onAppear { navigationSourceLifecycle.didAppear() }
         .onDisappear {
             guard navigationSourceLifecycle.shouldTearDown(
@@ -1589,3 +1525,76 @@ enum UserProfileCountText {
         return decimalPart == 0 ? "\(integerPart)万" : "\(integerPart).\(decimalPart)万"
     }
 }
+
+private extension UserProfileView {
+    func applyingProfileObservers() -> some View {
+        self
+            .task {
+            guard didLoad == false else { return }
+            await reload()
+        }
+        .onChange(of: account?.sessionIdentity) { _ in
+            cancelRequests()
+            requestGeneration += 1
+            profile = nil
+            threads = []
+            deletionTargetsByThreadID = [:]
+            nextPage = 1
+            hasMoreThreads = true
+            threadsVisibility = .visible
+            isLoadingProfile = false
+            isLoadingThreads = false
+            profileError = nil
+            threadsError = nil
+            userActionError = nil
+            isUpdatingFollow = false
+            didLoad = false
+            selectedThread = nil
+            selectedForum = nil
+            selectedRelationshipKind = nil
+            showsProfileEditor = false
+            pendingProfileEditRequest = nil
+            Task { await reload() }
+        }
+        .onChange(of: blocklistStore.entries) { _ in
+            threads.removeAll { TiebaContentFilter.shouldKeep(thread: $0) == false }
+            if var currentProfile = profile {
+                currentProfile.followedForums.removeAll {
+                    TiebaContentFilter.shouldKeep(forum: $0) == false
+                }
+                profile = currentProfile
+            }
+        }
+        .onReceive(environment.socialRelationshipState.userFollowDidChange) { change in
+            guard change.accountID == account?.id, let currentProfile = profile else { return }
+            if SocialRelationshipState.sameUser(currentProfile.user, change.user) {
+                applyFollowState(change.isFollowed)
+            } else if currentProfile.isCurrentUser {
+                profile?.followingCount = max(
+                    currentProfile.followingCount + (change.isFollowed ? 1 : -1),
+                    0
+                )
+            }
+        }
+        .onReceive(environment.socialRelationshipState.forumFollowDidChange) { change in
+            guard change.accountID == account?.id, profile?.isCurrentUser == true else { return }
+            applyForumFollowChange(change)
+        }
+        .onReceive(environment.socialRelationshipState.userMutationActivityDidChange) { change in
+            guard change.accountID == account?.id,
+                  let profile,
+                  SocialRelationshipState.sameUser(profile.user, change.user) else { return }
+            isUpdatingFollow = change.isPending
+        }
+        .onReceive(environment.ownThreadMutationState.didChange) { event in
+            guard event.accountID == account?.id else { return }
+            switch event.outcome {
+            case .deleted:
+                removeDeletedThread(event.threadID)
+            case .needsRefresh:
+                requestReadOnlyThreadRefresh()
+            }
+        }
+    }
+}
+

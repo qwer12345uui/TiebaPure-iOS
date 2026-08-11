@@ -111,7 +111,7 @@ struct SubpostSheetInteractiveDismissSurface<Content: View>: View {
                 )
                 .background(Color(uiColor: .systemBackground))
                 .clipShape(
-                    UnevenRoundedRectangle(
+                    CompatibleUnevenRoundedRectangle(
                         topLeadingRadius: 24,
                         topTrailingRadius: 24
                     )

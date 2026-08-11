@@ -118,8 +118,8 @@ struct ThreadFavoritesView: View {
 
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
-        if isEditing {
-            ToolbarItem(placement: .topBarLeading) {
+        ToolbarItem(placement: .topBarLeading) {
+            if isEditing {
                 Button(allVisibleFavoritesAreSelected ? "取消全选" : "全选") {
                     selectedThreadIDs = LocalThreadListSelectionPolicy
                         .selectionByTogglingAll(
@@ -132,8 +132,8 @@ struct ThreadFavoritesView: View {
             }
         }
 
-        if isEditing == false, libraryStore.readingPositions.isEmpty == false {
-            ToolbarItem(placement: .topBarTrailing) {
+        ToolbarItem(placement: .topBarTrailing) {
+            if isEditing == false, libraryStore.readingPositions.isEmpty == false {
                 Menu {
                     Button(role: .destructive) {
                         showsClearReadingPositionsConfirmation = true
@@ -150,8 +150,8 @@ struct ThreadFavoritesView: View {
             }
         }
 
-        if visibleFavorites.isEmpty == false || isEditing {
-            ToolbarItem(placement: .topBarTrailing) {
+        ToolbarItem(placement: .topBarTrailing) {
+            if visibleFavorites.isEmpty == false || isEditing {
                 EditButton()
                     .minTouchTarget()
                     .accessibilityIdentifier("thread-favorites-edit")
