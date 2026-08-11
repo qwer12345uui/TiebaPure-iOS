@@ -16,7 +16,7 @@ struct ContentComposerView: View {
     @State private var bodyText: String
     @State private var attachments: [ContentSubmissionImage]
     @State private var savedSnapshot: ContentComposerSnapshot
-    @State private var photoSelection: [PhotosPickerItem] = []
+    @State private var photoSelection: [CompatiblePhotoItem] = []
     @State private var photoLoadingTask: Task<Void, Never>?
     @State private var photoLoadProgress: (completed: Int, total: Int)?
     @State private var attachmentErrorMessage: String?
@@ -59,7 +59,7 @@ struct ContentComposerView: View {
     }
 
     var body: some View {
-        NavigationStack {
+        CompatibleNavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
                     Text(target.prompt)
@@ -83,7 +83,7 @@ struct ContentComposerView: View {
                 .padding(.horizontal, 16)
                 .padding(.vertical, 20)
             }
-            .scrollDismissesKeyboard(.interactively)
+            .compatibleScrollDismissesKeyboardInteractively()
             .accessibilityIdentifier("content-composer-scroll-view")
             .background(Color(uiColor: .systemGroupedBackground))
             .navigationTitle(target.kind.navigationTitle)
@@ -152,10 +152,9 @@ struct ContentComposerView: View {
                 )
             }
 
-            TextField("请输入帖子标题", text: $title, axis: .vertical)
+            CompatibleVerticalTextField("请输入帖子标题", text: $title, lineLimit: 1...3)
                 .textFieldStyle(.plain)
                 .font(.body)
-                .lineLimit(1...3)
                 .focused($focusedField, equals: .title)
                 .submitLabel(.next)
                 .onSubmit { focusedField = .body }
@@ -196,7 +195,7 @@ struct ContentComposerView: View {
                 TextEditor(text: $bodyText)
                     .font(.body)
                     .focused($focusedField, equals: .body)
-                    .scrollContentBackground(.hidden)
+                    .compatibleScrollContentBackgroundHidden()
                     .padding(.horizontal, 8)
                     .padding(.vertical, 6)
                     .frame(minHeight: max(editorMinimumHeight, 132))
@@ -247,7 +246,7 @@ struct ContentComposerView: View {
                 }
                 .padding(.vertical, 2)
             }
-            .scrollIndicators(.hidden)
+            .compatibleScrollIndicatorsHidden()
         }
     }
 
@@ -284,7 +283,7 @@ struct ContentComposerView: View {
                 }
                 .padding(.vertical, 2)
             }
-            .scrollIndicators(.hidden)
+            .compatibleScrollIndicatorsHidden()
             .frame(height: 98)
         }
     }
@@ -356,7 +355,7 @@ struct ContentComposerView: View {
     }
 
     private var actionBar: some View {
-        ViewThatFits(in: .horizontal) {
+        CompatibleViewThatFits(in: .horizontal) {
             HStack(spacing: 4) {
                 mediaButton
                 emoticonButton
@@ -393,12 +392,10 @@ struct ContentComposerView: View {
         if target.kind == .newThread {
             EmptyView()
         } else if remaining > 0 {
-            PhotosPicker(
-                selection: $photoSelection,
-                maxSelectionCount: remaining,
-                matching: .images,
-                preferredItemEncoding: .current
-            ) {
+            CompatiblePhotosPicker(
+                        selection: $photoSelection,
+                        maxSelectionCount: remaining
+                    ) {
                 Label("图片", systemImage: "photo.on.rectangle.angled")
                     .frame(minHeight: 44)
                     .padding(.horizontal, 8)
@@ -582,7 +579,7 @@ struct ContentComposerView: View {
         onCancel()
     }
 
-    private func preparePhotoSelection(_ selection: [PhotosPickerItem]) {
+    private func preparePhotoSelection(_ selection: [CompatiblePhotoItem]) {
         guard selection.isEmpty == false else { return }
         photoLoadingTask?.cancel()
 
@@ -603,7 +600,7 @@ struct ContentComposerView: View {
             for (index, item) in items.enumerated() {
                 guard Task.isCancelled == false else { return }
                 do {
-                    guard let data = try await item.loadTransferable(type: Data.self) else {
+                    guard let data = try await item.loadImageData() else {
                         throw ContentSubmissionValidationError.invalidImage
                     }
                     let image = try await Task.detached(priority: .userInitiated) {

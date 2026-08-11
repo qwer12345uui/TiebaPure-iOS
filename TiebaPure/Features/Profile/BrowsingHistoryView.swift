@@ -82,7 +82,7 @@ struct BrowsingHistoryView: View {
         .safeAreaInset(edge: .bottom, spacing: 0) {
             selectionBar
         }
-        .navigationDestination(isPresented: entryIsActive) {
+        .compatibleNavigationDestination(isPresented: entryIsActive) {
             if let activeEntry {
                 ThreadDetailView(
                     account: account,

@@ -341,7 +341,7 @@ final class ForumSignTests: XCTestCase {
         let coordinator = ForumSignCoordinator(
             api: FixtureTiebaAPI(scenario: .success),
             settings: settings,
-            requestSpacing: .milliseconds(500)
+            requestSpacing: 0.5
         )
         let run = Task { @MainActor in
             await coordinator.signAllFollowedForums(account: account)
@@ -373,7 +373,7 @@ final class ForumSignTests: XCTestCase {
         let coordinator = ForumSignCoordinator(
             api: FixtureTiebaAPI(scenario: .success),
             settings: settings,
-            requestSpacing: .milliseconds(500)
+            requestSpacing: 0.5
         )
         let accountStore = AccountStore(service: MemoryAccountStoreService())
         try await accountStore.save(account)

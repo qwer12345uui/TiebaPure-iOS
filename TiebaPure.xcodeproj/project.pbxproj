@@ -28,6 +28,7 @@
 		1C53CA119B8A4874452D2F6B /* ContentDraftFilePersistenceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EFE6592A34B15BF182198BFA /* ContentDraftFilePersistenceTests.swift */; };
 		1D73C1F9246A5740B5D63601 /* LogoutCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D6B235101269A6DE9BEB53A /* LogoutCoordinator.swift */; };
 		215E174D28331CD22F134EE6 /* TiebaAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06BFF7EDD31716056CE12B69 /* TiebaAPI.swift */; };
+		21EFAA93E0642F2694774981 /* Compatibility.swift in Sources */ = {isa = PBXBuildFile; fileRef = 15150912C2BEB3EDFCECDD6C /* Compatibility.swift */; };
 		221CEAF5C48D697203C0FC6B /* SwiftData.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 158DD0B24F8C6500639DB687 /* SwiftData.framework */; settings = {ATTRIBUTES = (Weak, ); }; };
 		22C326EADD75278D51629E56 /* ReaderCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 431A697F330BBEC18E2252D0 /* ReaderCard.swift */; };
 		2382AFD769C00913BCF7C713 /* PbContent.pb.swift in Sources */ = {isa = PBXBuildFile; fileRef = C017341C9C78B3832CB8A72F /* PbContent.pb.swift */; };
@@ -270,6 +271,7 @@
 		11227FF243EF6E0046E5C4A1 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
 		12A3703C41D45165012736BB /* TiebaFormSignerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TiebaFormSignerTests.swift; sourceTree = "<group>"; };
 		13D33824C028F1604024BA69 /* OpenInTiebaPureRequestHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenInTiebaPureRequestHandler.swift; sourceTree = "<group>"; };
+		15150912C2BEB3EDFCECDD6C /* Compatibility.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Compatibility.swift; sourceTree = "<group>"; };
 		158DD0B24F8C6500639DB687 /* SwiftData.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftData.framework; path = System/Library/Frameworks/SwiftData.framework; sourceTree = SDKROOT; };
 		1626D4B0DD88E88576EBC2EB /* ThreadDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThreadDetailView.swift; sourceTree = "<group>"; };
 		16DDB351392A69BC42810B9E /* SearchResult.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchResult.swift; sourceTree = "<group>"; };
@@ -520,6 +522,7 @@
 			children = (
 				674313EBDA3BABF79049EF20 /* AvatarView.swift */,
 				994E9D3128F82A0683DA39E0 /* CapsuleLabel.swift */,
+				15150912C2BEB3EDFCECDD6C /* Compatibility.swift */,
 				06656E39A13E9DD402A3E9D7 /* CompatibleUnavailableView.swift */,
 				40014AEAB18EA73BA47B8C64 /* CompatibleValueChange.swift */,
 				78FABF04E476AC1533EBDFA2 /* InteractiveNavigationPop.swift */,
@@ -1129,6 +1132,7 @@
 				D9175F6F62D428CC171F73D7 /* BrowsingHistoryView.swift in Sources */,
 				71CE2CA03E418210ED2CCF8B /* CapsuleLabel.swift in Sources */,
 				5FE25FDC40B4F42C42A3787C /* CommonRequest.pb.swift in Sources */,
+				21EFAA93E0642F2694774981 /* Compatibility.swift in Sources */,
 				7CEA7F2EE7BE862C3706356A /* CompatibleUnavailableView.swift in Sources */,
 				45FA5C71106C0E325C3D4798 /* CompatibleValueChange.swift in Sources */,
 				560E7C25470B13349BE24055 /* ContentBlock.swift in Sources */,
@@ -1446,6 +1450,7 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -1463,6 +1468,7 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -1517,6 +1523,7 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -1534,6 +1541,7 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",

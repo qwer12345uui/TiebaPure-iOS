@@ -44,7 +44,7 @@ struct HomeView: View {
                 // Regular width routes global search into the detail column so
                 // the feed list stays visible and drivable next to it.
                 placeholder
-                    .navigationDestination(isPresented: splitSearchIsActive) {
+                    .compatibleNavigationDestination(isPresented: splitSearchIsActive) {
                         if let activeSearch {
                             SearchResultsView(account: account, scope: .global, initialKeyword: activeSearch.keyword)
                                 .interactiveNavigationPopStateSync {
@@ -54,7 +54,7 @@ struct HomeView: View {
                     }
             }
         )
-        .toolbar(.visible, for: .tabBar)
+        .compatibleTabBarVisibility(.visible)
         .onChange(of: horizontalSizeClass) { sizeClass in
             foldNavigationForSizeClassChange(to: sizeClass)
         }
@@ -95,7 +95,7 @@ struct HomeView: View {
                 .accessibilityIdentifier("home-search-button")
             }
         }
-        .navigationDestination(isPresented: searchIsActive) {
+        .compatibleNavigationDestination(isPresented: searchIsActive) {
             if let activeSearch {
                 SearchResultsView(account: account, scope: .global, initialKeyword: activeSearch.keyword)
                     .interactiveNavigationPopStateSync {
@@ -103,7 +103,7 @@ struct HomeView: View {
                     }
             }
         }
-        .navigationDestination(for: HomeNavigationRoute.self) { route in
+        .compatibleNavigationDestination(for: HomeNavigationRoute.self) { route in
             switch route {
             case let .thread(threadRoute):
                 ThreadDetailView(
@@ -540,7 +540,7 @@ struct HomeView: View {
             .frame(maxWidth: .infinity)
             .contentShape(Rectangle())
         }
-        .scrollBounceBehavior(.always, axes: .vertical)
+        .compatibleScrollBounceBehaviorAlwaysVertical()
         .accessibilityIdentifier("home-feed-scroll-view")
         .shortPullRefresh(
             isEnabled: didLoad && isLoading == false,

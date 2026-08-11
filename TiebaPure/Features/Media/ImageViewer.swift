@@ -778,6 +778,7 @@ struct ImagePreviewSourceAnchorReader: UIViewRepresentable {
         }
     }
 
+    @available(iOS 16.0, *)
     func sizeThatFits(
         _ proposal: ProposedViewSize,
         uiView: ImagePreviewSourceView,
@@ -3923,7 +3924,7 @@ struct FullScreenImageView: View {
             if dynamicTypeSize.isAccessibilitySize {
                 stackedBottomBar
             } else {
-                ViewThatFits(in: .horizontal) {
+                CompatibleViewThatFits(in: .horizontal) {
                     compactBottomBar
                     stackedBottomBar
                 }
@@ -4027,7 +4028,7 @@ struct FullScreenImageView: View {
     private var originalButtonLabel: some View {
         if currentOriginalLoadState == .loading {
             Text(originalImageButtonTitle)
-                .fontDesign(.monospaced)
+                .compatibleFontDesign(.monospaced)
                 .lineLimit(1)
         } else if dynamicTypeSize.isAccessibilitySize {
             VStack(spacing: TiebaPureTheme.Spacing.xs) {

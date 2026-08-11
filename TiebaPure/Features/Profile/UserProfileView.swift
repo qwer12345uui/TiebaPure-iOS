@@ -120,7 +120,7 @@ struct UserProfileView: View {
                 .environmentObject(environment)
             }
         }
-        .navigationDestination(isPresented: threadIsActive) {
+        .compatibleNavigationDestination(isPresented: threadIsActive) {
             if let selectedThread {
                 ThreadDetailView(
                     account: account,
@@ -135,7 +135,7 @@ struct UserProfileView: View {
                 }
             }
         }
-        .navigationDestination(isPresented: forumIsActive) {
+        .compatibleNavigationDestination(isPresented: forumIsActive) {
             if let selectedForum {
                 ForumThreadsView(account: account, forum: selectedForum)
                     .interactiveNavigationPopStateSync {
@@ -143,7 +143,7 @@ struct UserProfileView: View {
                     }
             }
         }
-        .navigationDestination(isPresented: relationshipIsActive) {
+        .compatibleNavigationDestination(isPresented: relationshipIsActive) {
             if let selectedRelationshipKind, let profile {
                 UserRelationshipsView(
                     account: account,
@@ -949,7 +949,7 @@ private struct UserProfileEditSheet: View {
     }
 
     var body: some View {
-        NavigationStack {
+        CompatibleNavigationStack {
             Group {
                 if didSave {
                     successContent
@@ -1273,7 +1273,7 @@ private struct UserProfileHeader: View {
 
     private var identitySummary: some View {
         VStack(alignment: .leading, spacing: TiebaPureTheme.Spacing.xxs) {
-            ViewThatFits(in: .horizontal) {
+            CompatibleViewThatFits(in: .horizontal) {
                 HStack(alignment: .center, spacing: TiebaPureTheme.Spacing.xs) {
                     profileName
                     levelBadge
@@ -1299,7 +1299,7 @@ private struct UserProfileHeader: View {
 
     @ViewBuilder
     private var profileStats: some View {
-        ViewThatFits(in: .horizontal) {
+        CompatibleViewThatFits(in: .horizontal) {
             HStack(spacing: TiebaPureTheme.Spacing.md) {
                 profileStatViews
             }

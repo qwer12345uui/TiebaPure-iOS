@@ -35,7 +35,7 @@ struct ForumHubView: View {
             },
             listColumn: { hubColumn }
         )
-        .toolbar(.visible, for: .tabBar)
+        .compatibleTabBarVisibility(.visible)
         .onChange(of: horizontalSizeClass) { sizeClass in
             bridgeDetailForSizeClassChange(to: sizeClass)
         }
@@ -180,7 +180,7 @@ struct ForumHubView: View {
                 }
             }
         }
-        .scrollContentBackground(.hidden)
+        .compatibleScrollContentBackgroundHidden()
         .accessibilityIdentifier("forum-hub-list")
         .shortPullRefresh(
             isEnabled: isLoadingFollowed == false,
@@ -241,7 +241,7 @@ struct ForumHubView: View {
             requestGeneration += 1
             isLoadingFollowed = false
         }
-        .navigationDestination(for: ForumHubNavigationRoute.self) { route in
+        .compatibleNavigationDestination(for: ForumHubNavigationRoute.self) { route in
             switch route {
             case let .forum(forumRoute):
                 ForumThreadsView(

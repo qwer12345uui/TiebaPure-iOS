@@ -195,7 +195,7 @@ private struct ExternalRouteView: View {
     let onClose: () -> Void
 
     var body: some View {
-        NavigationStack {
+        CompatibleNavigationStack {
             Group {
                 switch route {
                 case let .thread(id, postID):

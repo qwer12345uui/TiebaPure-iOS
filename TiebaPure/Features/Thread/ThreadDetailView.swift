@@ -168,13 +168,13 @@ struct ThreadDetailView: View {
 
     private var navigationContent: some View {
         decoratedContent
-            .navigationDestination(isPresented: $isSearchActive) {
+            .compatibleNavigationDestination(isPresented: $isSearchActive) {
                 SearchResultsView(account: account, scope: searchScope, initialKeyword: "")
                     .interactiveNavigationPopStateSync {
                         isSearchActive = false
                     }
             }
-            .navigationDestination(isPresented: selectedUserIsActive) {
+            .compatibleNavigationDestination(isPresented: selectedUserIsActive) {
                 if let selectedUser {
                     UserProfileView(
                         account: account,
@@ -187,7 +187,7 @@ struct ThreadDetailView: View {
                     }
                 }
             }
-            .navigationDestination(isPresented: selectedForumIsActive) {
+            .compatibleNavigationDestination(isPresented: selectedForumIsActive) {
                 if let selectedForum {
                     ForumThreadsView(account: account, forum: selectedForum)
                         .interactiveNavigationPopStateSync {
@@ -300,7 +300,7 @@ struct ThreadDetailView: View {
                       event.threadID == threadID else { return }
                 hasUnconfirmedOwnThreadDeletion = event.outcome == .needsRefresh
             }
-            .toolbar(.hidden, for: .tabBar)
+            .compatibleTabBarVisibility(.hidden)
             .onAppear(perform: handleAppear)
             .onDisappear(perform: handleDisappear)
     }
@@ -704,7 +704,7 @@ struct ThreadDetailView: View {
             Button(action: openThreadInBrowser) {
                 Label("浏览器打开", systemImage: "safari")
             }
-            ShareLink(item: threadWebURL) {
+            CompatibleShareLink(item: threadWebURL) {
                 Label("分享", systemImage: "square.and.arrow.up")
             }
             if resolvedOwnThreadDeletionTarget != nil,
@@ -1397,7 +1397,7 @@ struct ThreadDetailView: View {
         }
         preciseScrollTimeoutTask = Task { @MainActor in
             do {
-                try await Task.sleep(for: .milliseconds(1_500))
+                try await Task.compatSleep(seconds: 1.5)
             } catch {
                 return
             }
@@ -1538,7 +1538,7 @@ struct ThreadDetailView: View {
                 }
             }
             do {
-                try await Task.sleep(for: ThreadReadingPersistencePolicy.idleDelay)
+                try await Task.compatSleep(seconds: ThreadReadingPersistencePolicy.idleDelay)
             } catch {
                 return
             }
@@ -1971,7 +1971,7 @@ enum ThreadReadingPositionRequest: Equatable, Sendable {
 enum ThreadReadingPersistencePolicy {
     // A short quiet period keeps SwiftData work out of repeated flicks while
     // still persisting promptly when the reader pauses.
-    static let idleDelay: Duration = .milliseconds(250)
+    static let idleDelay: TimeInterval = 0.25
 
     static func intent(
         scrollRegion: ThreadReadingScrollRegion,
@@ -2298,7 +2298,7 @@ private struct ReplyControlBar: View {
     let onSortChange: (ThreadReplySort) -> Void
 
     var body: some View {
-        ViewThatFits(in: .horizontal) {
+        CompatibleViewThatFits(in: .horizontal) {
             HStack(spacing: TiebaPureTheme.Spacing.sm) {
                 filterControls
                 Spacer(minLength: TiebaPureTheme.Spacing.sm)
@@ -2324,7 +2324,7 @@ private struct ReplyControlBar: View {
     }
 
     private var filterControls: some View {
-        ViewThatFits(in: .horizontal) {
+        CompatibleViewThatFits(in: .horizontal) {
             HStack(spacing: TiebaPureTheme.Spacing.md) {
                 filterButton(title: "全部回复", isSelected: seeLz == false) {
                     onSeeLzChange(false)
@@ -2347,7 +2347,7 @@ private struct ReplyControlBar: View {
     }
 
     private var sortControls: some View {
-        ViewThatFits(in: .horizontal) {
+        CompatibleViewThatFits(in: .horizontal) {
             HStack(spacing: 0) {
                 ForEach(ThreadReplySort.allCases) { item in
                     sortButton(item)
@@ -2547,7 +2547,7 @@ private struct SubpostListSheet: View {
             isEnabled: selectedUser == nil,
             onDismiss: onInteractiveDismiss
         ) {
-            NavigationStack {
+            CompatibleNavigationStack {
                 Group {
                 if isLoading && didLoad == false {
                     ReaderStateView.loading("加载回复")
@@ -2681,7 +2681,7 @@ private struct SubpostListSheet: View {
                         SubpostSheetDismissButton()
                     }
                 }
-                .navigationDestination(isPresented: selectedUserIsActive) {
+                .compatibleNavigationDestination(isPresented: selectedUserIsActive) {
                     if let selectedUser {
                         UserProfileView(
                             account: account,
@@ -3157,10 +3157,12 @@ private extension View {
                 .presentationDragIndicator(.hidden)
                 .presentationBackground(.clear)
                 .interactiveDismissDisabled()
-        } else {
+        } else if #available(iOS 16.0, *) {
             presentationDetents([.large])
                 .presentationDragIndicator(.hidden)
                 .interactiveDismissDisabled()
+        } else {
+            interactiveDismissDisabled()
         }
     }
 }

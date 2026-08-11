@@ -124,7 +124,7 @@ struct ReaderSplitLayout<Route: Hashable, ListColumn: View, DetailRoot: View>: V
     }
 
     var body: some View {
-        if horizontalSizeClass == .regular {
+        if #available(iOS 16.0, *), horizontalSizeClass == .regular {
             GeometryReader { geometry in
                 let leadingColumnWidth = ReaderSplitColumnWidthPolicy.preferredWidth(
                     containerWidth: geometry.size.width
@@ -137,13 +137,14 @@ struct ReaderSplitLayout<Route: Hashable, ListColumn: View, DetailRoot: View>: V
         }
     }
 
+    @available(iOS 16.0, *)
     private func splitNavigation(leadingColumnWidth: CGFloat) -> some View {
         NavigationSplitView(columnVisibility: .constant(.doubleColumn)) {
             splitListNavigation(leadingColumnWidth: leadingColumnWidth)
         } detail: {
-            NavigationStack(path: $detailPath) {
+            CompatiblePathNavigationStack(path: $detailPath) {
                 detailRoot(ReaderSplitDetailPlaceholder())
-                    .navigationDestination(for: ReaderSplitThreadRoute.self) { route in
+                    .compatibleNavigationDestination(for: ReaderSplitThreadRoute.self) { route in
                         ThreadDetailView(
                             account: account,
                             threadID: route.threadID,
@@ -161,6 +162,7 @@ struct ReaderSplitLayout<Route: Hashable, ListColumn: View, DetailRoot: View>: V
         .navigationSplitViewStyle(.balanced)
     }
 
+    @available(iOS 16.0, *)
     @ViewBuilder
     private func splitListNavigation(leadingColumnWidth: CGFloat) -> some View {
         if #available(iOS 17.0, *) {
@@ -186,13 +188,13 @@ struct ReaderSplitLayout<Route: Hashable, ListColumn: View, DetailRoot: View>: V
     }
 
     private var splitListStack: some View {
-        NavigationStack(path: $navigationPath) {
+        CompatiblePathNavigationStack(path: $navigationPath) {
             listColumn()
         }
     }
 
     private var compactNavigation: some View {
-        NavigationStack(path: $navigationPath) {
+        CompatiblePathNavigationStack(path: $navigationPath) {
             listColumn()
         }
         // A compact handler lets the parent keep ownership of a thread opened

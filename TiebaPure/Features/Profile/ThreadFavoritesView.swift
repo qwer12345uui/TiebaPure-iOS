@@ -101,7 +101,7 @@ struct ThreadFavoritesView: View {
         .safeAreaInset(edge: .bottom, spacing: 0) {
             selectionBar
         }
-        .navigationDestination(isPresented: favoriteIsActive) {
+        .compatibleNavigationDestination(isPresented: favoriteIsActive) {
             if let activeFavorite {
                 ThreadDetailView(
                     account: account,

@@ -11,8 +11,8 @@ struct AboutView: View {
     var body: some View {
         Form {
             Section("TiebaPure") {
-                LabeledContent("版本", value: versionText)
-                LabeledContent("项目作者") {
+                CompatibleLabeledContent("版本", value: versionText)
+                CompatibleLabeledContent("项目作者") {
                     Link("infinityf4p", destination: authorURL)
                 }
                 Text("以浏览为主的非官方百度贴吧客户端；登录后支持关注、点赞，以及实验性的发帖与回复。与百度公司及贴吧官方无隶属、授权或认可关系。")
@@ -31,7 +31,7 @@ struct AboutView: View {
                         fallbackURL: gplURL
                     )
                 } label: {
-                    LabeledContent("TiebaPure-iOS", value: "GPL-3.0-only")
+                    CompatibleLabeledContent("TiebaPure-iOS", value: "GPL-3.0-only")
                 }
 
                 NavigationLink {
@@ -42,7 +42,7 @@ struct AboutView: View {
                         fallbackURL: swiftProtobufLicenseURL
                     )
                 } label: {
-                    LabeledContent("SwiftProtobuf", value: "Apache-2.0")
+                    CompatibleLabeledContent("SwiftProtobuf", value: "Apache-2.0")
                 }
             }
         }

@@ -9,7 +9,7 @@ struct MeView: View {
     @State private var navigationPath: [MeNavigationRoute] = []
 
     var body: some View {
-        NavigationStack(path: $navigationPath) {
+        CompatiblePathNavigationStack(path: $navigationPath) {
             Form {
                 if let account {
                     Section("账号") {
@@ -163,11 +163,11 @@ struct MeView: View {
             }
             .navigationTitle("我的")
             .interactiveNavigationPopRevealSource()
-            .navigationDestination(for: MeNavigationRoute.self) { route in
+            .compatibleNavigationDestination(for: MeNavigationRoute.self) { route in
                 destination(for: route)
             }
             .sheet(isPresented: $showsLogin) {
-                NavigationStack {
+                CompatibleNavigationStack {
                     LoginView()
                         .navigationTitle("手机号验证码登录")
                         .navigationBarTitleDisplayMode(.inline)
@@ -188,7 +188,7 @@ struct MeView: View {
                 }
             }
         }
-        .toolbar(.visible, for: .tabBar)
+        .compatibleTabBarVisibility(.visible)
     }
 
     private var browsingHistoryAccessibilityLabel: String {
