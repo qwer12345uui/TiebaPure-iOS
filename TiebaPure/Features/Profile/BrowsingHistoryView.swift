@@ -28,7 +28,7 @@ struct BrowsingHistoryView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
+        let withNavigation = VStack(spacing: 0) {
             if historyStore.items.isEmpty == false {
                 dateFilterPicker
             }
@@ -45,8 +45,8 @@ struct BrowsingHistoryView: View {
             prompt: "搜索标题、作者或贴吧"
         )
         .toolbar {
-            if isEditing {
-                ToolbarItem(placement: .topBarLeading) {
+            ToolbarItem(placement: .topBarLeading) {
+                if isEditing {
                     Button(allVisibleEntriesAreSelected ? "取消全选" : "全选") {
                         selectedThreadIDs = LocalThreadListSelectionPolicy
                             .selectionByTogglingAll(
@@ -59,8 +59,8 @@ struct BrowsingHistoryView: View {
                 }
             }
 
-            if isEditing == false, historyStore.items.isEmpty == false {
-                ToolbarItem(placement: .topBarTrailing) {
+            ToolbarItem(placement: .topBarTrailing) {
+                if isEditing == false, historyStore.items.isEmpty == false {
                     Button("清空") {
                         showsClearConfirmation = true
                     }
@@ -70,8 +70,8 @@ struct BrowsingHistoryView: View {
                 }
             }
 
-            if visibleEntries.isEmpty == false || isEditing {
-                ToolbarItem(placement: .topBarTrailing) {
+            ToolbarItem(placement: .topBarTrailing) {
+                if visibleEntries.isEmpty == false || isEditing {
                     EditButton()
                         .minTouchTarget()
                         .accessibilityIdentifier("browsing-history-edit")
@@ -94,6 +94,7 @@ struct BrowsingHistoryView: View {
                 }
             }
         }
+        let withDialogs = withNavigation
         .confirmationDialog(
             "清空全部浏览历史？",
             isPresented: $showsClearConfirmation,
@@ -131,7 +132,7 @@ struct BrowsingHistoryView: View {
             Text("未能保存浏览历史更改，请稍后重试。")
         }
         
-            .applyingHistoryLifecycleObservers()
+        return applyingHistoryLifecycleObservers(to: withDialogs)
         .fullScreenInteractiveNavigationPop()
     }
 

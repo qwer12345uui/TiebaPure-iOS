@@ -88,8 +88,8 @@ struct UserProfileView: View {
         .toolbar {
             // Do not expose the destructive block action while identity is
             // still unknown; a fast tap used to allow blocking oneself.
-            if let profile, profile.isCurrentUser == false {
-                ToolbarItem(placement: .topBarTrailing) {
+            ToolbarItem(placement: .topBarTrailing) {
+                if let profile, profile.isCurrentUser == false {
                     Menu {
                         blockToggleButton
                     } label: {
