@@ -62,9 +62,6 @@ def apply_global_rules(rel, text):
 #   ("exact", old, new, label)                    — literal replace-all
 #   ("regex", pattern, replacement, marker, label) — marker only for status
 #   ("sizeThatFits",)                              — prepend @available(iOS 16)
-#   ("extractChain", pattern, type, method, marker, label)
-#                                                  — split a long modifier
-#                                                    chain into an extension
 # ---------------------------------------------------------------------------
 PRESENTATION_DETENTS_OLD = (
     "        } else {\n"
@@ -185,21 +182,31 @@ FILE_RULES = {
          r"ToolbarItem\(placement: \.topBarTrailing\) \{\s*\n[ \t]*if visibleFavorites\.isEmpty == false \|\| isEditing \{",
          "edit button toolbar item condition"),
     ],
+    # Type-check timeouts on iOS 15: the observer modifier chains were first
+    # extracted into private extension methods, then moved behind an explicit
+    # `to:` parameter and the call sites split into let/return statements, so
+    # no single expression exceeds the type-checker budget.
     "TiebaPure/Features/Profile/BrowsingHistoryView.swift": [
-        ("extractChain",
-         r"(\.task \{\s*await historyStore\.waitForPendingMutations\(\).*?)(?=\s*\.fullScreenInteractiveNavigationPop\(\))",
-         "BrowsingHistoryView",
-         "applyingHistoryLifecycleObservers",
-         r"func applyingHistoryLifecycleObservers\(\)",
-         "split lifecycle observers chain"),
+        ("exact",
+         "    func applyingHistoryLifecycleObservers() -> some View {\n        self\n",
+         "    func applyingHistoryLifecycleObservers<Content: View>(to content: Content) -> some View {\n        content\n",
+         "history observers take content parameter"),
+        ("regex",
+         r'(?s)(struct BrowsingHistoryView: View \{)(.*?)(    var body: some View \{\n)[ \t]*(.*?)(\n            \.confirmationDialog\(\s*"清空全部浏览历史？",.*?)(\n            \.applyingHistoryLifecycleObservers\(\)\n)',
+         r'\1\2\3        let withNavigation = \4\n        let withDialogs = withNavigation\5\n        return applyingHistoryLifecycleObservers(to: withDialogs)\n',
+         r"applyingHistoryLifecycleObservers\(to:",
+         "split history body into statements"),
     ],
     "TiebaPure/Features/Profile/UserProfileView.swift": [
-        ("extractChain",
-         r"(\.task \{\s*guard didLoad == false else \{ return \}\s*await reload\(\)\s*\}\s*\.onChange\(of: account\?\.sessionIdentity\).*?)(?=\s*\.onAppear \{ navigationSourceLifecycle\.didAppear\(\) \})",
-         "UserProfileView",
-         "applyingProfileObservers",
-         r"func applyingProfileObservers\(\)",
-         "split profile observers chain"),
+        ("exact",
+         "    func applyingProfileObservers() -> some View {\n        self\n",
+         "    func applyingProfileObservers<Content: View>(to content: Content) -> some View {\n        content\n",
+         "profile observers take content parameter"),
+        ("regex",
+         r"(?s)(struct UserProfileView: View \{)(.*?)(    var body: some View \{\n)[ \t]*(.*?)(\n            \.applyingProfileObservers\(\)\n)",
+         r"\1\2\3        let withPresentation = \4\n        return applyingProfileObservers(\n            to: withPresentation\n        )\n",
+         r"applyingProfileObservers\(\s*to:",
+         "wrap profile body content"),
     ],
     "TiebaPure/Features/Media/ImageViewer.swift": [
         ("sizeThatFits",),
@@ -242,29 +249,6 @@ def apply_regex(text, pattern, replacement, marker):
     return text, "missing"
 
 
-def apply_extract_chain(text, pattern, type_name, method_name, marker):
-    # The extracted chain is re-emitted inside the appended extension method,
-    # which itself matches `pattern` — so the marker must be checked first.
-    if re.search(marker, text):
-        return text, "already"
-    match = re.search(pattern, text, re.S)
-    if not match:
-        return text, "missing"
-    captured = match.group(1)
-    call = "\n            .%s()" % method_name
-    text = text[:match.start()] + call + text[match.end():]
-    method = (
-        "\n\nprivate extension %s {\n"
-        "    func %s() -> some View {\n"
-        "        self\n"
-        "            %s\n"
-        "    }\n"
-        "}\n"
-    ) % (type_name, method_name, captured)
-    text = text.rstrip() + method + "\n"
-    return text, "applied"
-
-
 def apply_size_that_fits(text):
     matches = list(SIZE_THAT_FITS.finditer(text))
     if not matches:
@@ -301,9 +285,6 @@ def process_file(path, rules, use_globals):
         elif rule[0] == "sizeThatFits":
             label = "sizeThatFits availability"
             text, status = apply_size_that_fits(text)
-        elif rule[0] == "extractChain":
-            _, pattern, type_name, method_name, marker, label = rule
-            text, status = apply_extract_chain(text, pattern, type_name, method_name, marker)
         else:
             continue
         note("  [%s] %s: %s" % (status, rel, label))
