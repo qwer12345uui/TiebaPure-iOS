@@ -33,7 +33,7 @@ jobs:
       - name: Fetch merged upstream sources
         run: |
           set -euo pipefail
-          BASE="https://raw.githubusercontent.com/infinityf4p/TiebaPure-iOS/e78f257c5fbc726169559b9c547c43900def9f6d"
+          BASE="https://raw.githubusercontent.com/infinityf4p/TiebaPure-iOS/6c9a831cdd17f4d2da3f221d6d927d584d0b4221"
           curl -fsSL "$BASE/TiebaPure/Features/Thread/ThreadDetailView.swift" -o TiebaPure/Features/Thread/ThreadDetailView.swift
           curl -fsSL "$BASE/TiebaPure/Features/Home/HomeView.swift" -o TiebaPure/Features/Home/HomeView.swift
           curl -fsSL "$BASE/TiebaPure/Core/UI/ReaderSplitLayout.swift" -o TiebaPure/Core/UI/ReaderSplitLayout.swift
