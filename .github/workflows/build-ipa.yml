@@ -27,6 +27,17 @@ jobs:
         with:
           ref: ${{ github.head_ref || github.ref_name }}
 
+      # The upstream merge brought in a few sources too large to push through
+      # the assistant reliably. CI runners have network access, so fetch their
+      # exact pinned upstream contents before the compatibility patch step.
+      - name: Fetch merged upstream sources
+        run: |
+          set -euo pipefail
+          BASE="https://raw.githubusercontent.com/infinityf4p/TiebaPure-iOS/e78f257c5fbc726169559b9c547c43900def9f6d"
+          curl -fsSL "$BASE/TiebaPure/Features/Thread/ThreadDetailView.swift" -o TiebaPure/Features/Thread/ThreadDetailView.swift
+          curl -fsSL "$BASE/TiebaPure/Features/Home/HomeView.swift" -o TiebaPure/Features/Home/HomeView.swift
+          curl -fsSL "$BASE/TiebaPure/Core/UI/ReaderSplitLayout.swift" -o TiebaPure/Core/UI/ReaderSplitLayout.swift
+
       - name: Apply iOS 15 compatibility patches
         run: python3 scripts/apply_ios15_fixes.py | tee /tmp/patch-report.txt
 
