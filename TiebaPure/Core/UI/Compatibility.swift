@@ -85,26 +85,15 @@ extension Font {
 /// emulation inside `CompatiblePathNavigationStack`. Builders registered by
 /// `.compatibleNavigationDestination(for:)` are looked up when a path entry
 /// is pushed.
-final class CompatibleNavigationDestinations: ObservableObject {
+final class CompatibleNavigationDestinations {
     private var builders: [ObjectIdentifier: (Any) -> AnyView] = [:]
-
-    /// The legacy `NavigationLink` can ask for its destination before SwiftUI
-    /// has evaluated the source view's destination modifier. Publishing the
-    /// first registration lets a deferred destination re-evaluate instead of
-    /// permanently caching an `EmptyView` on iOS 15.
-    @Published private(set) var registrationGeneration = 0
 
     func register<Route: Hashable, Destination: View>(
         _ type: Route.Type,
         builder: @escaping (Route) -> Destination
     ) {
-        let identifier = ObjectIdentifier(type)
-        let isNewRegistration = builders[identifier] == nil
-        builders[identifier] = { value in
+        builders[ObjectIdentifier(type)] = { value in
             AnyView(builder(value as! Route))
-        }
-        if isNewRegistration {
-            registrationGeneration &+= 1
         }
     }
 
@@ -131,12 +120,10 @@ private struct CompatibleDestinationRegistration<Route: Hashable, Destination: V
     @Environment(\.compatibleNavigationDestinations) private var destinations
 
     func body(content: Content) -> some View {
-        // Register after the source view enters the hierarchy. Publishing from
-        // `body` is undefined in SwiftUI and can itself destabilize legacy
-        // NavigationView updates on iOS 15.
-        content.onAppear {
-            destinations?.register(type, builder: builder)
-        }
+        // Re-register on every evaluation so the builder closure always
+        // captures the view's current state.
+        destinations?.register(type, builder: builder)
+        return content
     }
 }
 
@@ -180,7 +167,7 @@ struct CompatiblePathNavigationStack<Route: Hashable, Content: View>: View {
                 content
                     .environment(\.compatibleNavigationDestinations, destinations)
                     .background(
-                        CompatibleNavigationChain(path: $path, destinations: destinations)
+                        CompatibleNavigationRootLink(path: $path, destinations: destinations)
                     )
             }
             .navigationViewStyle(.stack)
@@ -188,82 +175,63 @@ struct CompatiblePathNavigationStack<Route: Hashable, Content: View>: View {
     }
 }
 
-/// One hidden `NavigationLink` per path entry. Popping a level truncates the
-/// path; appending to the path activates the matching link. Everything is
-/// type-erased through `AnyView` so the recursive chain compiles.
-private struct CompatibleNavigationChain<Route: Hashable>: View {
+/// The hidden `NavigationLink` that pushes the first path level. It stays in
+/// the hierarchy at all times and is toggled by its `isActive` binding, rather
+/// than being inserted only once the path becomes non-empty — a link inserted
+/// while already active does not push or render its destination on iOS 15.
+private struct CompatibleNavigationRootLink<Route: Hashable>: View {
     @Binding var path: [Route]
     let destinations: CompatibleNavigationDestinations
 
     var body: some View {
-        if path.isEmpty == false {
-            link(at: 0)
-        }
-    }
-
-    private func link(at index: Int) -> AnyView {
-        AnyView(
-            NavigationLink(
-                isActive: Binding(
-                    get: { path.count > index },
-                    set: { isActive in
-                        if isActive == false, path.count > index {
-                            path = Array(path.prefix(index))
-                        }
-                    }
-                ),
-                destination: { destination(at: index) },
-                label: { EmptyView() }
-            )
+        NavigationLink(
+            isActive: Binding(
+                get: { path.isEmpty == false },
+                set: { isActive in
+                    if isActive == false { path = [] }
+                }
+            ),
+            destination: {
+                CompatibleNavigationLevel(index: 0, path: $path, destinations: destinations)
+            },
+            label: { EmptyView() }
         )
-    }
-
-    private func destination(at index: Int) -> AnyView {
-        guard path.count > index else {
-            return AnyView(EmptyView())
-        }
-        // Do not resolve the builder in the NavigationLink closure. On iOS 15
-        // that closure may run before the source modifier registers its
-        // builder, and the resulting EmptyView is then retained by UIKit for
-        // the life of the pushed controller.
-        return AnyView(
-            CompatibleDeferredNavigationDestination(
-                route: path[index],
-                destinations: destinations
-            )
-            .background(nextLink(after: index))
-        )
-    }
-
-    private func nextLink(after index: Int) -> AnyView {
-        guard path.count > index + 1 else {
-            return AnyView(EmptyView())
-        }
-        return link(at: index + 1)
     }
 }
 
-/// Resolves a legacy path-navigation destination only after it becomes visible.
-/// This avoids the iOS 15 NavigationLink eager-destination behavior that would
-/// otherwise turn a valid route into a permanently blank pushed page.
-private struct CompatibleDeferredNavigationDestination<Route: Hashable>: View {
-    let route: Route
-    @ObservedObject var destinations: CompatibleNavigationDestinations
+/// One pushed level of the emulated stack. It resolves its route through the
+/// registered destination builders and carries the next level's hidden link in
+/// its background, so that link is already present (and merely flips
+/// `isActive` from false to true) when the user pushes deeper — the only push
+/// timing iOS 15 renders reliably. The single `AnyView` at the link boundary
+/// breaks the recursive opaque type so the chain still compiles.
+private struct CompatibleNavigationLevel<Route: Hashable>: View {
+    let index: Int
+    @Binding var path: [Route]
+    let destinations: CompatibleNavigationDestinations
 
+    @ViewBuilder
     var body: some View {
-        Group {
-            if let view = destinations.destination(for: route) {
-                view
-            } else {
-                ProgressView()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .accessibilityLabel("正在打开页面")
-            }
+        if path.count > index, let view = destinations.destination(for: path[index]) {
+            view.background(nextLink)
         }
-        // This view observes the generation through its identity. A first
-        // registration performed after the link is pushed therefore replaces
-        // the provisional progress view with the real destination.
-        .id(destinations.registrationGeneration)
+    }
+
+    private var nextLink: some View {
+        NavigationLink(
+            isActive: Binding(
+                get: { path.count > index + 1 },
+                set: { isActive in
+                    if isActive == false {
+                        path = Array(path.prefix(index + 1))
+                    }
+                }
+            ),
+            destination: {
+                AnyView(CompatibleNavigationLevel(index: index + 1, path: $path, destinations: destinations))
+            },
+            label: { EmptyView() }
+        )
     }
 }
 
@@ -738,6 +706,19 @@ private extension NSItemProvider {
     }
 }
 
+// MARK: - Split-layout capability
+
+enum ReaderSplitCapability {
+    /// `NavigationSplitView` requires iOS 16; on iOS 15 the reader always
+    /// uses the compact single-column navigation stack.
+    static var supportsSplitColumns: Bool {
+        if #available(iOS 16.0, *) {
+            return true
+        }
+        return false
+    }
+}
+
 // MARK: - UnevenRoundedRectangle
 
 /// `UnevenRoundedRectangle` deployable to iOS 15. Draws the same per-corner
@@ -800,18 +781,5 @@ struct CompatibleUnevenRoundedRectangle: Shape {
         }
         path.closeSubpath()
         return path
-    }
-}
-
-// MARK: - Split-layout capability
-
-enum ReaderSplitCapability {
-    /// `NavigationSplitView` requires iOS 16; on iOS 15 the reader always
-    /// uses the compact single-column navigation stack.
-    static var supportsSplitColumns: Bool {
-        if #available(iOS 16.0, *) {
-            return true
-        }
-        return false
     }
 }
