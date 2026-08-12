@@ -49,6 +49,51 @@ final class TiebaPureUITests: XCTestCase {
         )
     }
 
+    func testThreadMainPostBlocklistShowsExplicitBlockedStateInsteadOfReplies() {
+        let app = launchApp(
+            additionalArguments: ["UITEST_SEED_MAIN_POST_BLOCKLIST"]
+        )
+
+        openFirstThread(in: app)
+
+        XCTAssertTrue(
+            app.staticTexts["帖子已被本机屏蔽"].waitForExistence(timeout: 8)
+        )
+        XCTAssertFalse(app.buttons["thread-main-user-button"].exists)
+        XCTAssertFalse(app.descendants(matching: .any)["thread-reply-metadata"].exists)
+    }
+
+    func testThreadRecoversMainPostBeforeShowingReplies() {
+        let app = launchApp(scenario: "missingMainThenRecovery")
+
+        openFirstThread(in: app)
+
+        XCTAssertTrue(app.buttons["thread-main-user-button"].waitForExistence(timeout: 8))
+        XCTAssertTrue(app.descendants(matching: .any)["thread-reply-metadata"].exists)
+        XCTAssertFalse(app.staticTexts["未能加载帖子主楼，请刷新后重试。"].exists)
+    }
+
+    func testThreadUsesExplicitHomeSummaryWhenFullMainPostRecoveryFails() {
+        let app = launchApp(scenario: "missingMain")
+
+        openFirstThread(in: app)
+
+        XCTAssertTrue(
+            app.descendants(matching: .any)["thread-main-summary-fallback-notice"]
+                .waitForExistence(timeout: 8)
+        )
+        XCTAssertTrue(app.buttons["thread-main-user-button"].exists)
+        XCTAssertTrue(app.descendants(matching: .any)["thread-main-text"].exists)
+        let threadScrollView = app.scrollViews.firstMatch
+        XCTAssertTrue(threadScrollView.waitForExistence(timeout: 5))
+        threadScrollView.swipeUp()
+        XCTAssertTrue(
+            app.descendants(matching: .any)["thread-reply-metadata"]
+                .waitForExistence(timeout: 5)
+        )
+        XCTAssertFalse(app.staticTexts["未能加载帖子主楼，请刷新后重试。"].exists)
+    }
+
     func testVoiceSummaryRequiresDetailAndPlaybackStatesRemainAccessible() {
         let app = launchApp(scenario: "voicePlayback")
         let successIdentifier = "voice-playback-\(String(repeating: "a", count: 32))"
@@ -3732,7 +3777,10 @@ final class TiebaPureUITests: XCTestCase {
     }
 
     func testSubpostRightSwipeDismissesTheWholeSheet() {
-        let app = launchApp(scenario: "subpostReference")
+        let app = launchApp(
+            scenario: "subpostReference",
+            disableAnimations: false
+        )
         openFirstThread(in: app)
 
         XCTAssertTrue(waitForElement(named: "查看全部4条回复", in: app, maxSwipes: 20))
@@ -3741,6 +3789,10 @@ final class TiebaPureUITests: XCTestCase {
         openAllButton.tap()
         let navigationBar = app.navigationBars["2楼的回复(4条)"]
         XCTAssertTrue(navigationBar.waitForExistence(timeout: 8))
+        XCTAssertTrue(
+            app.buttons["更多"].waitForExistence(timeout: 3),
+            "楼中楼呈现不能重建帖子页或破坏其导航状态"
+        )
         let sheetSurface = app.descendants(matching: .any)["subpost-sheet-surface"]
         XCTAssertTrue(sheetSurface.waitForExistence(timeout: 5))
         XCTAssertEqual(
