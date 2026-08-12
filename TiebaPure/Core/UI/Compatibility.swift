@@ -251,17 +251,19 @@ private struct CompatibleDeferredNavigationDestination<Route: Hashable>: View {
     @ObservedObject var destinations: CompatibleNavigationDestinations
 
     var body: some View {
-        // Establish an observation dependency before requesting the builder.
-        // A first registration performed during the source view's evaluation
-        // then invalidates this view and supplies the real destination.
-        _ = destinations.registrationGeneration
-        if let view = destinations.destination(for: route) {
-            view
-        } else {
-            ProgressView()
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .accessibilityLabel("正在打开页面")
+        Group {
+            if let view = destinations.destination(for: route) {
+                view
+            } else {
+                ProgressView()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .accessibilityLabel("正在打开页面")
+            }
         }
+        // This view observes the generation through its identity. A first
+        // registration performed after the link is pushed therefore replaces
+        // the provisional progress view with the real destination.
+        .id(destinations.registrationGeneration)
     }
 }
 
