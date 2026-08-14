@@ -815,3 +815,33 @@ enum ReaderSplitCapability {
         return false
     }
 }
+
+// MARK: - Floating tab bar visibility
+
+/// Visibility preference for the app-level floating tab bar. Child views set
+/// this when they become a navigation destination so the root container can
+/// remove the floating control without changing their navigation stack.
+enum FloatingTabBarVisibility {
+    case automatic
+    case hidden
+}
+
+struct FloatingTabBarVisibilityPreferenceKey: PreferenceKey {
+    static let defaultValue = false
+
+    static func reduce(value: inout Bool, nextValue: () -> Bool) {
+        value = value || nextValue()
+    }
+}
+
+extension View {
+    /// Hides the app's floating glass tab bar while this view is present.
+    /// This is intentionally independent of UIKit's tab bar API so it works
+    /// on iOS 15 and for views hosted inside legacy NavigationView stacks.
+    func floatingTabBarVisibility(_ visibility: FloatingTabBarVisibility) -> some View {
+        preference(
+            key: FloatingTabBarVisibilityPreferenceKey.self,
+            value: visibility == .hidden
+        )
+    }
+}

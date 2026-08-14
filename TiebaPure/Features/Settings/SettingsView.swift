@@ -194,6 +194,7 @@ struct SettingsView: View {
             }
         }
         .fullScreenInteractiveNavigationPop()
+        .floatingTabBarVisibility(.hidden)
     }
 
     private var automaticSignSelection: Binding<Bool> {

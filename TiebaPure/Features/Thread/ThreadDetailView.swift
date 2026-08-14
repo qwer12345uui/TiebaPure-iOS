@@ -305,6 +305,7 @@ struct ThreadDetailView: View {
                 hasUnconfirmedOwnThreadDeletion = event.outcome == .needsRefresh
             }
             .compatibleTabBarVisibility(.hidden)
+            .floatingTabBarVisibility(.hidden)
             .onAppear(perform: handleAppear)
             .onDisappear(perform: handleDisappear)
     }

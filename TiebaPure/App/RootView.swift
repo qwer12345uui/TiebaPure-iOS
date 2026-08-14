@@ -225,6 +225,7 @@ private struct MainTabView: View {
     let account: Account?
     @State private var selectedTab: RootTab = .home
     @State private var homeRefreshToken = 0
+    @State private var hidesFloatingTabBar = false
 
     var body: some View {
         Group {
@@ -236,11 +237,16 @@ private struct MainTabView: View {
         }
         .compatibleTabBarVisibility(.hidden)
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            GlassTabBar(selectedTab: selectedTab, onSelect: selectTab)
-                .padding(.horizontal, 24)
-                .padding(.top, 8)
-                .padding(.bottom, 10)
+            if hidesFloatingTabBar == false {
+                GlassTabBar(selectedTab: selectedTab, onSelect: selectTab)
+                    .padding(.horizontal, 24)
+                    .padding(.top, 8)
+                    .padding(.bottom, 10)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
         }
+        .animation(.easeInOut(duration: 0.18), value: hidesFloatingTabBar)
+        .onPreferenceChange(FloatingTabBarVisibilityPreferenceKey.self) { hidesFloatingTabBar = $0 }
         .background(
             TabSelectionObserver {
                 homeRefreshToken += 1
@@ -305,6 +311,8 @@ private struct MainTabView: View {
 }
 
 private struct GlassTabBar: View {
+    @Environment(\.colorScheme) private var colorScheme
+
     let selectedTab: RootTab
     let onSelect: (RootTab) -> Void
 
@@ -315,16 +323,33 @@ private struct GlassTabBar: View {
             tabButton(.me, title: "我的", symbol: "person.circle")
         }
         .padding(6)
-        .background(
-            RoundedRectangle(cornerRadius: 31, style: .continuous)
-                .fill(.ultraThinMaterial)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 31, style: .continuous)
-                        .stroke(Color.white.opacity(0.72), lineWidth: 1)
-                )
-                .shadow(color: Color.black.opacity(0.14), radius: 16, y: 8)
-        )
+        .background(glassFrame)
         .accessibilityIdentifier("root-glass-tab-bar")
+    }
+
+    private var glassFrame: some View {
+        RoundedRectangle(cornerRadius: 31, style: .continuous)
+            .fill(.ultraThinMaterial)
+            .overlay {
+                if colorScheme == .dark {
+                    RoundedRectangle(cornerRadius: 31, style: .continuous)
+                        .fill(Color(red: 0.055, green: 0.075, blue: 0.11).opacity(0.58))
+                }
+            }
+            .overlay(
+                RoundedRectangle(cornerRadius: 31, style: .continuous)
+                    .stroke(
+                        colorScheme == .dark
+                            ? Color.white.opacity(0.24)
+                            : Color.white.opacity(0.72),
+                        lineWidth: 1
+                    )
+            )
+            .shadow(
+                color: Color.black.opacity(colorScheme == .dark ? 0.42 : 0.14),
+                radius: colorScheme == .dark ? 20 : 16,
+                y: 8
+            )
     }
 
     private func tabButton(_ tab: RootTab, title: String, symbol: String) -> some View {
@@ -339,11 +364,11 @@ private struct GlassTabBar: View {
                 Text(title)
                     .font(.caption2.weight(.semibold))
             }
-            .foregroundColor(isSelected ? .accentColor : .primary)
+            .foregroundColor(tabForegroundColor(isSelected: isSelected))
             .frame(maxWidth: .infinity, minHeight: 54)
             .background(
                 Capsule()
-                    .fill(isSelected ? Color.white.opacity(0.48) : .clear)
+                    .fill(selectionFillColor(isSelected: isSelected))
                     .padding(.vertical, 2)
             )
         }
@@ -351,6 +376,22 @@ private struct GlassTabBar: View {
         .accessibilityIdentifier(symbol)
         .accessibilityLabel(title)
         .accessibilityValue(isSelected ? "已选中" : "")
+    }
+
+    private func tabForegroundColor(isSelected: Bool) -> Color {
+        if isSelected {
+            return colorScheme == .dark
+                ? Color(red: 0.33, green: 0.72, blue: 1)
+                : .accentColor
+        }
+        return colorScheme == .dark ? Color.white.opacity(0.86) : .primary
+    }
+
+    private func selectionFillColor(isSelected: Bool) -> Color {
+        guard isSelected else { return .clear }
+        return colorScheme == .dark
+            ? Color(red: 0.18, green: 0.36, blue: 0.52).opacity(0.72)
+            : Color.white.opacity(0.48)
     }
 }
 
