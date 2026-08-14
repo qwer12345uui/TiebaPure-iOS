@@ -242,10 +242,8 @@ private struct MainTabView: View {
                     .padding(.horizontal, 24)
                     .padding(.top, 8)
                     .padding(.bottom, 10)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
-        .animation(.easeInOut(duration: 0.18), value: hidesFloatingTabBar)
         .onPreferenceChange(FloatingTabBarVisibilityPreferenceKey.self) { hidesFloatingTabBar = $0 }
         .background(
             TabSelectionObserver {

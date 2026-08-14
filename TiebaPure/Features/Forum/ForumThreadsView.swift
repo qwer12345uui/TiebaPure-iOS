@@ -269,6 +269,7 @@ struct ForumThreadsView: View {
             cancelSocialRequests()
         }
         .fullScreenInteractiveNavigationPop()
+        .floatingTabBarVisibility(.hidden)
     }
 
     private var categoryPicker: some View {
