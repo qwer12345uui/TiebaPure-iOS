@@ -234,6 +234,13 @@ private struct MainTabView: View {
                 legacyTabView
             }
         }
+        .compatibleTabBarVisibility(.hidden)
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            GlassTabBar(selectedTab: selectedTab, onSelect: selectTab)
+                .padding(.horizontal, 24)
+                .padding(.top, 8)
+                .padding(.bottom, 10)
+        }
         .background(
             TabSelectionObserver {
                 homeRefreshToken += 1
@@ -284,9 +291,66 @@ private struct MainTabView: View {
         Binding(
             get: { selectedTab },
             set: { newValue in
+                if newValue == .home, selectedTab == .home {
+                    homeRefreshToken += 1
+                }
                 selectedTab = newValue
             }
         )
+    }
+
+    private func selectTab(_ tab: RootTab) {
+        tabSelection.wrappedValue = tab
+    }
+}
+
+private struct GlassTabBar: View {
+    let selectedTab: RootTab
+    let onSelect: (RootTab) -> Void
+
+    var body: some View {
+        HStack(spacing: 4) {
+            tabButton(.home, title: "首页", symbol: "house")
+            tabButton(.forums, title: "进吧", symbol: "square.grid.2x2")
+            tabButton(.me, title: "我的", symbol: "person.circle")
+        }
+        .padding(6)
+        .background(
+            RoundedRectangle(cornerRadius: 31, style: .continuous)
+                .fill(.ultraThinMaterial)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 31, style: .continuous)
+                        .stroke(Color.white.opacity(0.72), lineWidth: 1)
+                )
+                .shadow(color: Color.black.opacity(0.14), radius: 16, y: 8)
+        )
+        .accessibilityIdentifier("root-glass-tab-bar")
+    }
+
+    private func tabButton(_ tab: RootTab, title: String, symbol: String) -> some View {
+        let isSelected = selectedTab == tab
+        return Button {
+            onSelect(tab)
+        } label: {
+            VStack(spacing: 3) {
+                Image(systemName: symbol)
+                    .font(.system(size: 21, weight: .semibold))
+                    .frame(height: 22)
+                Text(title)
+                    .font(.caption2.weight(.semibold))
+            }
+            .foregroundColor(isSelected ? .accentColor : .primary)
+            .frame(maxWidth: .infinity, minHeight: 54)
+            .background(
+                Capsule()
+                    .fill(isSelected ? Color.white.opacity(0.48) : .clear)
+                    .padding(.vertical, 2)
+            )
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier(symbol)
+        .accessibilityLabel(title)
+        .accessibilityValue(isSelected ? "已选中" : "")
     }
 }
 
@@ -399,6 +463,7 @@ private struct TabSelectionObserver: UIViewControllerRepresentable {
 
         func attach(to tabBarController: UITabBarController) {
             guard observedController !== tabBarController || tabBarController.delegate !== self else {
+                tabBarController.tabBar.isHidden = true
                 return
             }
             detach()
@@ -407,12 +472,18 @@ private struct TabSelectionObserver: UIViewControllerRepresentable {
             }
             observedController = tabBarController
             tabBarController.delegate = self
+            // iOS 15 has no SwiftUI API for hiding a tab bar. The floating
+            // glass control owns tab interaction, so remove UIKit's bar from
+            // both the visual and hit-test hierarchies on every deployment
+            // target; iOS 16+ also receives the SwiftUI toolbar modifier.
+            tabBarController.tabBar.isHidden = true
         }
 
         func detach() {
             if let observedController, observedController.delegate === self {
                 observedController.delegate = previousDelegate
             }
+            observedController?.tabBar.isHidden = false
             observedController = nil
             previousDelegate = nil
         }
