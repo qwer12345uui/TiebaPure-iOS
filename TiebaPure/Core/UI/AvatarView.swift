@@ -13,7 +13,10 @@ enum TiebaImageRequestPolicy {
         )
         request.setValue("tieba/12.52.1.0 skin/default", forHTTPHeaderField: "User-Agent")
         request.setValue("https://tieba.baidu.com/", forHTTPHeaderField: "Referer")
-        request.setValue("image/avif,image/webp,image/apng,image/*,*/*;q=0.8", forHTTPHeaderField: "Accept")
+        // iOS 15's ImageIO cannot reliably decode AVIF. Prefer JPEG, PNG,
+        // WebP and APNG so avatar and forum-preview responses remain
+        // renderable on the full supported deployment range.
+        request.setValue("image/jpeg,image/png,image/webp,image/apng;q=0.9,*/*;q=0.1", forHTTPHeaderField: "Accept")
         return request
     }
 
@@ -130,6 +133,7 @@ private enum TiebaImagePipelineError: Error {
 actor TiebaImagePipeline {
     static let shared = TiebaImagePipeline()
     static let maximumImageBytes = 30 * 1_024 * 1_024
+    private static let diskCachePath = "TiebaPureImages-v2"
 
     private struct DecodeRequest: Hashable {
         let url: URL
@@ -175,7 +179,7 @@ actor TiebaImagePipeline {
         let urlCache = suppliedConfiguration?.urlCache ?? URLCache(
             memoryCapacity: 64 * 1_024 * 1_024,
             diskCapacity: 256 * 1_024 * 1_024,
-            diskPath: "TiebaPureImages"
+            diskPath: Self.diskCachePath
         )
         configuration.urlCache = urlCache
         configuration.httpShouldSetCookies = false

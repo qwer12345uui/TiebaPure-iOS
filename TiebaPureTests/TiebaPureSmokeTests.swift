@@ -1323,7 +1323,10 @@ final class TiebaPureSmokeTests: XCTestCase {
         XCTAssertEqual(request.timeoutInterval, 20)
         XCTAssertEqual(request.value(forHTTPHeaderField: "Referer"), "https://tieba.baidu.com/")
         XCTAssertEqual(request.value(forHTTPHeaderField: "User-Agent"), "tieba/12.52.1.0 skin/default")
-        XCTAssertEqual(request.value(forHTTPHeaderField: "Accept"), "image/avif,image/webp,image/apng,image/*,*/*;q=0.8")
+        XCTAssertEqual(
+            request.value(forHTTPHeaderField: "Accept"),
+            "image/jpeg,image/png,image/webp,image/apng;q=0.9,*/*;q=0.1"
+        )
     }
 
     func testTiebaImageRetryPolicyOnlyRetriesTransientFailures() {
