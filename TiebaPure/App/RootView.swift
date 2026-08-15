@@ -244,7 +244,16 @@ private struct MainTabView: View {
                     .padding(.bottom, 10)
             }
         }
-        .onPreferenceChange(FloatingTabBarVisibilityPreferenceKey.self) { hidesFloatingTabBar = $0 }
+        .onPreferenceChange(FloatingTabBarVisibilityPreferenceKey.self) { requestedVisibility in
+            // Source stacks change visibility while UIKit is laying out a push
+            // or pop. Apply the state without an implicit SwiftUI transition so
+            // the glass bar never briefly pops over forum or post content.
+            var transaction = Transaction()
+            transaction.disablesAnimations = true
+            withTransaction(transaction) {
+                hidesFloatingTabBar = requestedVisibility
+            }
+        }
         .background(
             TabSelectionObserver {
                 homeRefreshToken += 1

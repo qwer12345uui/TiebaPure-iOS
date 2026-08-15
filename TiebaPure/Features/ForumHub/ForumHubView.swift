@@ -38,13 +38,21 @@ struct ForumHubView: View {
             listColumn: { hubColumn }
         )
         .compatibleTabBarVisibility(.visible)
-        .floatingTabBarVisibility(isForumInputFocused ? .hidden : .automatic)
+        .floatingTabBarVisibility(shouldHideFloatingTabBar ? .hidden : .automatic)
         .task {
             await hydrateMissingRecentForumAvatars()
         }
         .onChange(of: horizontalSizeClass) { sizeClass in
             bridgeDetailForSizeClassChange(to: sizeClass)
         }
+    }
+
+    /// The nested iOS 15 navigation stack does not reliably propagate a
+    /// destination's preference back to the app root. Drive the floating bar
+    /// from this source stack instead, so both a forum list and every post
+    /// opened from it receive the same stable hidden state.
+    private var shouldHideFloatingTabBar: Bool {
+        isForumInputFocused || navigationPath.isEmpty == false || splitDetailPath.isEmpty == false
     }
 
     private var hubColumn: some View {
