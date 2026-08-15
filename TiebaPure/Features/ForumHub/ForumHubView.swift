@@ -13,6 +13,7 @@ struct ForumHubView: View {
     @State private var didLoadFollowed = false
     @State private var followedError: String?
     @State private var forumInput = ""
+    @FocusState private var isForumInputFocused: Bool
     @State private var navigationPath: [ForumHubNavigationRoute] = []
     @State private var splitDetailPath: [ReaderSplitThreadRoute] = []
     @State private var requestGeneration = 0
@@ -37,6 +38,7 @@ struct ForumHubView: View {
             listColumn: { hubColumn }
         )
         .compatibleTabBarVisibility(.visible)
+        .floatingTabBarVisibility(isForumInputFocused ? .hidden : .automatic)
         .task {
             await hydrateMissingRecentForumAvatars()
         }
@@ -50,13 +52,14 @@ struct ForumHubView: View {
             Section("打开贴吧") {
                 HStack(spacing: TiebaPureTheme.Spacing.sm) {
                     TextField("输入吧名", text: $forumInput)
+                        .focused($isForumInputFocused)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                         .submitLabel(.go)
-                        .onSubmit { openForum(named: forumInput) }
+                        .onSubmit { submitForumInput() }
 
                     Button {
-                        openForum(named: forumInput)
+                        submitForumInput()
                     } label: {
                         Image(systemName: "arrow.right.circle")
                             .font(.system(size: TiebaPureTheme.IconSize.toolbar))
@@ -395,6 +398,15 @@ struct ForumHubView: View {
     private func removeNavigationRouteIfCurrent(_ route: ForumHubNavigationRoute) {
         guard navigationPath.last == route else { return }
         navigationPath.removeLast()
+    }
+
+    private func submitForumInput() {
+        // The glass bar must disappear before UIKit starts its keyboard-safe-area
+        // animation; otherwise it is visibly lifted to the keyboard's top edge.
+        // Clearing focus also makes the next state (forum content or the hub)
+        // appear immediately rather than showing a transient floating control.
+        isForumInputFocused = false
+        openForum(named: forumInput)
     }
 
     private func openForum(named name: String) {
