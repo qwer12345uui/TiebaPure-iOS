@@ -17,6 +17,7 @@ struct ForumHubView: View {
     @State private var splitDetailPath: [ReaderSplitThreadRoute] = []
     @State private var requestGeneration = 0
     @State private var loadTask: Task<[Forum], Error>?
+    @State private var avatarHydrationNames = Set<String>()
     @State private var isManagingRecentForums = false
     @State private var showsClearRecentConfirmation = false
     @State private var showsRecentStorageError = false
@@ -36,6 +37,9 @@ struct ForumHubView: View {
             listColumn: { hubColumn }
         )
         .compatibleTabBarVisibility(.visible)
+        .task {
+            await hydrateMissingRecentForumAvatars()
+        }
         .onChange(of: horizontalSizeClass) { sizeClass in
             bridgeDetailForSizeClassChange(to: sizeClass)
         }
@@ -402,6 +406,43 @@ struct ForumHubView: View {
         guard ForumHubTapPolicy.destination(for: .rowBackground) == .forum else { return }
         recentStore.save(forum)
         navigationPath.append(.forum(ForumHubRoutePolicy.route(for: forum)))
+        hydrateForumAvatarIfNeeded(for: forum)
+    }
+
+    private func hydrateMissingRecentForumAvatars() async {
+        let missingAvatarForums = recentStore.items
+            .filter { $0.avatarURL == nil }
+            .prefix(6)
+            .map(\.forum)
+        for forum in missingAvatarForums {
+            await hydrateForumAvatar(for: forum)
+        }
+    }
+
+    private func hydrateForumAvatarIfNeeded(for forum: Forum) {
+        guard forum.avatarURL == nil else { return }
+        Task { await hydrateForumAvatar(for: forum) }
+    }
+
+    private func hydrateForumAvatar(for forum: Forum) async {
+        let normalizedName = forum.name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let key = normalizedName.lowercased()
+        guard normalizedName.isEmpty == false,
+              avatarHydrationNames.insert(key).inserted else {
+            return
+        }
+        defer { avatarHydrationNames.remove(key) }
+
+        do {
+            let resolvedForum = try await environment.api.forumInfo(named: normalizedName)
+            guard resolvedForum.avatarURL != nil else { return }
+            _ = recentStore.save(resolvedForum)
+        } catch is CancellationError {
+            return
+        } catch {
+            // Avatar hydration is opportunistic. The forum remains navigable and
+            // a later visit or app launch retries the official metadata request.
+        }
     }
 
     private func loadFollowed(account: Account) async {

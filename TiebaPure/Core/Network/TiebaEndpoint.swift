@@ -12,6 +12,7 @@ enum TiebaEndpoint {
     case webMyInfo
     case followedForums
     case forumPageForm
+    case forumInfo
     case personalized
     case frsPage
     case pbPage
@@ -56,6 +57,8 @@ enum TiebaEndpoint {
             return Self.appBase.compatAppending(path: "/c/f/forum/getforumlist")
         case .forumPageForm:
             return Self.appBase.compatAppending(path: "/c/f/frs/page")
+        case .forumInfo:
+            return Self.appBase.compatAppending(path: "/c/f/frs/frsBottom")
         case .personalized:
             return Self.base
                 .compatAppending(path: "/c/f/excellent/personalized")

@@ -4,6 +4,7 @@ protocol TiebaAPIService {
     func validateLogin(cookies: BaiduCookies) async throws -> Account
     func personalizedThreads(account: Account?, page: Int, loadType: Int) async throws -> [ThreadSummary]
     func followedForums(account: Account) async throws -> [Forum]
+    func forumInfo(named forumName: String) async throws -> Forum
     func forumThreads(
         account: Account?,
         forumName: String,
@@ -72,6 +73,13 @@ protocol TiebaAPIService {
 }
 
 extension TiebaAPIService {
+    /// Services that do not expose forum metadata can continue serving thread
+    /// content; callers retain the existing avatar until a live service can
+    /// provide the official forum image.
+    func forumInfo(named _: String) async throws -> Forum {
+        throw UserProfileMutationError.unsupportedByService
+    }
+
     /// Same shape as the other optional write operations: services that do not
     /// implement check-in (test doubles, offline stubs) reject it rather than
     /// having to carry a stub.

@@ -378,6 +378,40 @@ extension TiebaAPI {
         return response.forums.map(ForumMapper.fromFollowedForum)
     }
 
+    func forumInfo(named forumName: String) async throws -> Forum {
+        let name = forumName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard name.isEmpty == false else { throw TiebaAPIError.emptyResponse }
+
+        var fields = requestBuilder.miniCommonFields()
+        fields["kw"] = name
+        let response = try await client.postForm(
+            .forumInfo,
+            fields: fields,
+            headers: [
+                "User-Agent": "bdtb for Android \(TiebaClientVersion.mini.rawValue)",
+                "Cookie": "ka=open",
+                "Pragma": "no-cache",
+                "cuid": requestBuilder.miniCUID,
+                "cuid_galaxy2": requestBuilder.miniCUID
+            ],
+            signingSecret: "tiebaclient!!!",
+            as: ForumInfoResponseDTO.self
+        )
+        try validateResponseCode(response.errorCode, message: response.errorMessage)
+        guard let forum = response.forum else { throw TiebaAPIError.emptyResponse }
+
+        return Forum(
+            id: forum.id,
+            name: firstNonEmpty(forum.name, name),
+            displayName: firstNonEmpty(forum.name, name).hasSuffix("吧")
+                ? firstNonEmpty(forum.name, name)
+                : "\(firstNonEmpty(forum.name, name))吧",
+            avatarURL: TiebaURL.make(forum.avatar),
+            memberCount: forum.memberCount,
+            threadCount: forum.threadCount
+        )
+    }
+
     func forumThreads(
         account: Account?,
         forumName: String,
@@ -668,6 +702,56 @@ struct FollowedForumsDTO: Decodable {
         forums = try container.decodeIfPresent([ForumDTO].self, forKey: .forumInfo) ?? []
         errorCode = Int(container.decodeStringIfPresent(forKey: .errorCode) ?? "") ?? 0
         errorMessage = container.decodeStringIfPresent(forKey: .errorMessage) ?? ""
+    }
+}
+
+private struct ForumInfoResponseDTO: Decodable {
+    struct ForumDTO: Decodable {
+        var id: Int64
+        var name: String
+        var avatar: String
+        var memberCount: Int
+        var threadCount: Int
+
+        enum CodingKeys: String, CodingKey {
+            case id
+            case fid
+            case name
+            case forumName = "forum_name"
+            case avatar
+            case memberCount = "member_num"
+            case threadCount = "thread_num"
+        }
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            id = Int64(container.decodeStringIfPresent(forKey: .id)
+                ?? container.decodeStringIfPresent(forKey: .fid)
+                ?? "") ?? 0
+            name = container.decodeStringIfPresent(forKey: .name)
+                ?? container.decodeStringIfPresent(forKey: .forumName)
+                ?? ""
+            avatar = container.decodeStringIfPresent(forKey: .avatar) ?? ""
+            memberCount = Int(container.decodeStringIfPresent(forKey: .memberCount) ?? "") ?? 0
+            threadCount = Int(container.decodeStringIfPresent(forKey: .threadCount) ?? "") ?? 0
+        }
+    }
+
+    var errorCode: Int
+    var errorMessage: String
+    var forum: ForumDTO?
+
+    enum CodingKeys: String, CodingKey {
+        case errorCode = "error_code"
+        case errorMessage = "error_msg"
+        case forum
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        errorCode = Int(container.decodeStringIfPresent(forKey: .errorCode) ?? "") ?? 0
+        errorMessage = container.decodeStringIfPresent(forKey: .errorMessage) ?? ""
+        forum = try container.decodeIfPresent(ForumDTO.self, forKey: .forum)
     }
 }
 
