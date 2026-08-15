@@ -197,6 +197,12 @@ struct ForumHubView: View {
         }
         .compatibleScrollContentBackgroundHidden()
         .accessibilityIdentifier("forum-hub-list")
+        // Keep controls such as tiles and buttons interactive, while allowing
+        // any non-control area of the hub surface to dismiss the keyboard.
+        .simultaneousGesture(
+            TapGesture().onEnded { dismissForumKeyboard() },
+            including: .gesture
+        )
         .shortPullRefresh(
             isEnabled: isLoadingFollowed == false,
             surface: .grouped,
@@ -408,12 +414,17 @@ struct ForumHubView: View {
         navigationPath.removeLast()
     }
 
+    private func dismissForumKeyboard() {
+        guard isForumInputFocused else { return }
+        isForumInputFocused = false
+    }
+
     private func submitForumInput() {
         // The glass bar must disappear before UIKit starts its keyboard-safe-area
         // animation; otherwise it is visibly lifted to the keyboard's top edge.
         // Clearing focus also makes the next state (forum content or the hub)
         // appear immediately rather than showing a transient floating control.
-        isForumInputFocused = false
+        dismissForumKeyboard()
         openForum(named: forumInput)
     }
 

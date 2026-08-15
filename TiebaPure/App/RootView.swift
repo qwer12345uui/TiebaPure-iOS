@@ -303,30 +303,17 @@ private struct MainTabView: View {
     private var tabSelection: Binding<RootTab> {
         Binding(
             get: { selectedTab },
-            set: applyTabSelection
+            set: { newValue in
+                if newValue == .home, selectedTab == .home {
+                    homeRefreshToken += 1
+                }
+                selectedTab = newValue
+            }
         )
     }
 
     private func selectTab(_ tab: RootTab) {
-        applyTabSelection(tab)
-    }
-
-    private func applyTabSelection(_ tab: RootTab) {
-        guard tab != selectedTab else {
-            // Keep the established home reselect refresh behavior, but do not
-            // re-render the full glass bar for redundant forum/profile taps.
-            if tab == .home { homeRefreshToken &+= 1 }
-            return
-        }
-
-        // TabView and the material background can otherwise inherit an ambient
-        // push/pop animation during a tap. A single disabled-animation
-        // transaction keeps the content and selection indicator in lockstep.
-        var transaction = Transaction()
-        transaction.disablesAnimations = true
-        withTransaction(transaction) {
-            selectedTab = tab
-        }
+        tabSelection.wrappedValue = tab
     }
 }
 
@@ -337,19 +324,13 @@ private struct GlassTabBar: View {
     let onSelect: (RootTab) -> Void
 
     var body: some View {
-        // Three touching, equal-width hit regions deliberately cover the full
-        // glass frame. This lets users tap near a label or in a former gap,
-        // rather than requiring a precise tap on the icon itself.
-        HStack(spacing: 0) {
+        HStack(spacing: 4) {
             tabButton(.home, title: "首页", symbol: "house")
             tabButton(.forums, title: "进吧", symbol: "square.grid.2x2")
             tabButton(.me, title: "我的", symbol: "person.circle")
         }
+        .padding(6)
         .background(glassFrame)
-        .transaction { transaction in
-            transaction.animation = nil
-            transaction.disablesAnimations = true
-        }
         .accessibilityIdentifier("root-glass-tab-bar")
     }
 
@@ -391,19 +372,14 @@ private struct GlassTabBar: View {
                     .font(.caption2.weight(.semibold))
             }
             .foregroundColor(tabForegroundColor(isSelected: isSelected))
-            // Preserve the former 54 pt content height plus 6 pt glass inset on
-            // each side, but make the whole third of the bar tappable.
-            .frame(maxWidth: .infinity, minHeight: 66)
-            .contentShape(Rectangle())
+            .frame(maxWidth: .infinity, minHeight: 54)
             .background(
                 Capsule()
                     .fill(selectionFillColor(isSelected: isSelected))
-                    .padding(.vertical, 8)
-                    .padding(.horizontal, 2)
+                    .padding(.vertical, 2)
             )
         }
         .buttonStyle(.plain)
-        .contentShape(Rectangle())
         .accessibilityIdentifier(symbol)
         .accessibilityLabel(title)
         .accessibilityValue(isSelected ? "已选中" : "")
