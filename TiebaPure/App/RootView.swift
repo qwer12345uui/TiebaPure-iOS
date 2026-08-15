@@ -303,17 +303,30 @@ private struct MainTabView: View {
     private var tabSelection: Binding<RootTab> {
         Binding(
             get: { selectedTab },
-            set: { newValue in
-                if newValue == .home, selectedTab == .home {
-                    homeRefreshToken += 1
-                }
-                selectedTab = newValue
-            }
+            set: applyTabSelection
         )
     }
 
     private func selectTab(_ tab: RootTab) {
-        tabSelection.wrappedValue = tab
+        applyTabSelection(tab)
+    }
+
+    private func applyTabSelection(_ tab: RootTab) {
+        guard tab != selectedTab else {
+            // Keep the established home reselect refresh behavior, but do not
+            // re-render the full glass bar for redundant forum/profile taps.
+            if tab == .home { homeRefreshToken &+= 1 }
+            return
+        }
+
+        // TabView and the material background can otherwise inherit an ambient
+        // push/pop animation during a tap. A single disabled-animation
+        // transaction keeps the content and selection indicator in lockstep.
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
+        withTransaction(transaction) {
+            selectedTab = tab
+        }
     }
 }
 
@@ -331,6 +344,10 @@ private struct GlassTabBar: View {
         }
         .padding(6)
         .background(glassFrame)
+        .transaction { transaction in
+            transaction.animation = nil
+            transaction.disablesAnimations = true
+        }
         .accessibilityIdentifier("root-glass-tab-bar")
     }
 
