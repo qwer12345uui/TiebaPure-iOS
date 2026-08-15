@@ -337,12 +337,14 @@ private struct GlassTabBar: View {
     let onSelect: (RootTab) -> Void
 
     var body: some View {
-        HStack(spacing: 4) {
+        // Three touching, equal-width hit regions deliberately cover the full
+        // glass frame. This lets users tap near a label or in a former gap,
+        // rather than requiring a precise tap on the icon itself.
+        HStack(spacing: 0) {
             tabButton(.home, title: "首页", symbol: "house")
             tabButton(.forums, title: "进吧", symbol: "square.grid.2x2")
             tabButton(.me, title: "我的", symbol: "person.circle")
         }
-        .padding(6)
         .background(glassFrame)
         .transaction { transaction in
             transaction.animation = nil
@@ -389,14 +391,19 @@ private struct GlassTabBar: View {
                     .font(.caption2.weight(.semibold))
             }
             .foregroundColor(tabForegroundColor(isSelected: isSelected))
-            .frame(maxWidth: .infinity, minHeight: 54)
+            // Preserve the former 54 pt content height plus 6 pt glass inset on
+            // each side, but make the whole third of the bar tappable.
+            .frame(maxWidth: .infinity, minHeight: 66)
+            .contentShape(Rectangle())
             .background(
                 Capsule()
                     .fill(selectionFillColor(isSelected: isSelected))
-                    .padding(.vertical, 2)
+                    .padding(.vertical, 8)
+                    .padding(.horizontal, 2)
             )
         }
         .buttonStyle(.plain)
+        .contentShape(Rectangle())
         .accessibilityIdentifier(symbol)
         .accessibilityLabel(title)
         .accessibilityValue(isSelected ? "已选中" : "")
