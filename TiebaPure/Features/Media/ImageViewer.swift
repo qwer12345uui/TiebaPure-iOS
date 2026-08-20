@@ -2412,10 +2412,9 @@ enum FullScreenImageSourcePolicy {
         )
     }
 
-    /// Automatic full-screen image-body loading stays on the preview tier. A
-    /// distinct original image body is reserved for the explicit original and
-    /// download actions; the visible page may still issue a body-free HEAD
-    /// request so the control can display its file size.
+    /// The initial full-screen request stays on the preview tier. After that
+    /// request resolves, the visible page may upgrade an objectively undersized
+    /// preview; adjacent pages never touch their original URLs speculatively.
     static func automaticPreviewURLs(
         primary: URL?,
         fallback: URL?,
@@ -2575,6 +2574,34 @@ enum FullScreenImageDecodePolicy {
     }
 }
 
+enum FullScreenImageResolutionUpgradePolicy {
+    static let minimumPreviewTargetFraction: CGFloat = 0.8
+
+    static func shouldUpgrade(
+        previewPixelSize: CGSize,
+        targetPixelSize: Int,
+        pageIndex: Int,
+        currentIndex: Int,
+        didFinishPresentation: Bool,
+        previewURL: URL?,
+        originalURL: URL?,
+        originalState: FullScreenOriginalImageLoadState
+    ) -> Bool {
+        guard didFinishPresentation,
+              pageIndex == currentIndex,
+              originalState == .available,
+              let previewURL,
+              let originalURL,
+              previewURL != originalURL,
+              targetPixelSize > 0 else {
+            return false
+        }
+        let longestEdge = max(previewPixelSize.width, previewPixelSize.height)
+        guard longestEdge.isFinite, longestEdge > 0 else { return true }
+        return longestEdge < CGFloat(targetPixelSize) * minimumPreviewTargetFraction
+    }
+}
+
 enum FullScreenImagePlaceholderPolicy {
     static func canReuseAsPreview(
         placeholderSize: CGSize?,
@@ -2697,6 +2724,7 @@ private final class FullScreenZoomImageController: UIViewController,
     private var presentationCancellable: AnyCancellable?
     private var currentIndexCancellable: AnyCancellable?
     private var didRevealResolvedImage = false
+    private var didResolveAutomaticPreview = false
     private var lastReportedZoomed = false
     private var lastAccessibilityPercentage = 100
     private var zoomGestureStartTime: CFTimeInterval?
@@ -3151,6 +3179,7 @@ private final class FullScreenZoomImageController: UIViewController,
         }
         startOriginalMetadataLoadingIfEligible()
         startLoading()
+        startAutomaticResolutionUpgradeIfNeeded()
     }
 
     private func updatePageResidency() {
@@ -3184,6 +3213,7 @@ private final class FullScreenZoomImageController: UIViewController,
 
         resolvedImage = nil
         transitionImage = nil
+        didResolveAutomaticPreview = false
         resolvedImageView.image = nil
         didRevealResolvedImage = false
         resolvedImageView.alpha = 0
@@ -3230,7 +3260,7 @@ private final class FullScreenZoomImageController: UIViewController,
     }
 
     private func startLoading(force: Bool = false) {
-        if force == false, resolvedImage != nil || loadTask != nil { return }
+        if force == false, didResolveAutomaticPreview || loadTask != nil { return }
         loadTask?.cancel()
         retryButton.isHidden = true
         if placeholderImage == nil {
@@ -3257,6 +3287,7 @@ private final class FullScreenZoomImageController: UIViewController,
                     return
                 }
                 let loadedAfterPresentation = self.transitionState.didFinishPresentation
+                self.didResolveAutomaticPreview = true
                 self.resolvedImage = image
                 self.transitionImage = image
                 // Committing a full-screen bitmap to the layer tree mid-hero
@@ -3274,6 +3305,7 @@ private final class FullScreenZoomImageController: UIViewController,
                     )
                 )
                 self.reportResolvedImageLayoutIfPossible()
+                self.startAutomaticResolutionUpgradeIfNeeded()
             } catch is CancellationError {
                 return
             } catch {
@@ -3352,6 +3384,25 @@ private final class FullScreenZoomImageController: UIViewController,
                 }
             }
         }
+    }
+
+    private func startAutomaticResolutionUpgradeIfNeeded() {
+        guard didResolveAutomaticPreview, let image = resolvedImage else { return }
+        let pixelSize = CGSize(
+            width: image.cgImage.map { CGFloat($0.width) } ?? image.size.width * image.scale,
+            height: image.cgImage.map { CGFloat($0.height) } ?? image.size.height * image.scale
+        )
+        guard FullScreenImageResolutionUpgradePolicy.shouldUpgrade(
+            previewPixelSize: pixelSize,
+            targetPixelSize: FullScreenImageDecodePolicy.initialTargetPixelSize,
+            pageIndex: imageIndex,
+            currentIndex: transitionState.currentIndex,
+            didFinishPresentation: transitionState.didFinishPresentation,
+            previewURL: primaryURL,
+            originalURL: originalURL,
+            originalState: originalLoadState
+        ) else { return }
+        startOriginalImageLoading()
     }
 
     private func receiveOriginalLoadProgress(_ progress: BoundedURLSessionProgress) {
@@ -4276,13 +4327,20 @@ struct ImageViewerUITestHost: View {
     )
     @State private var didPresent = false
 
-    private let fixtureImage = ImageContent(
-        thumbnailURL: URL(string: "https://fixture-success.invalid/viewer-thumbnail.png"),
-        originalURL: URL(string: "https://fixture-success.invalid/viewer-original.png"),
-        width: 120,
-        height: 480,
-        showOriginalButton: true
-    )
+    private var fixtureImage: ImageContent {
+        let usesLowResolutionPreview = ProcessInfo.processInfo.arguments.contains(
+            "UITEST_IMAGE_VIEWER_LOW_RESOLUTION_PREVIEW"
+        )
+        return ImageContent(
+            thumbnailURL: URL(string: usesLowResolutionPreview
+                ? "https://fixture-success.invalid/viewer-lowres-thumbnail.png"
+                : "https://fixture-success.invalid/viewer-thumbnail.png"),
+            originalURL: URL(string: "https://fixture-success.invalid/viewer-original.png"),
+            width: 120,
+            height: 480,
+            showOriginalButton: true
+        )
+    }
     private let secondFixtureImage = ImageContent(
         thumbnailURL: URL(string: "https://fixture-success.invalid/viewer-second-thumbnail.png"),
         originalURL: URL(string: "https://fixture-success.invalid/viewer-second-original.png"),
