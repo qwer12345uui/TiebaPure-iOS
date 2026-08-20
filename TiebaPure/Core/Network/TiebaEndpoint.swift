@@ -36,6 +36,7 @@ enum TiebaEndpoint {
     case addThreadStore
     case removeThreadStore
     case agreePost
+    case webTBS
     case webAddThread
     case webAddPost(timestamp: Int64)
     case webUploadPicture(nonce: String)
