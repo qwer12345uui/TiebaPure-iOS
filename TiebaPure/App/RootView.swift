@@ -304,24 +304,45 @@ private struct MainTabView: View {
     }
 
     private func selectTab(_ tab: RootTab) {
+        // Preserve the established Home reselect behavior without forcing an
+        // unnecessary tab transition. The glass indicator handles its own
+        // lightweight selection animation so TabView content keeps UIKit's
+        // native transition and scroll behavior.
+        if tab == .home, selectedTab == .home {
+            homeRefreshToken += 1
+            return
+        }
+        guard selectedTab != tab else { return }
         tabSelection.wrappedValue = tab
     }
 }
 
 private struct GlassTabBar: View {
     @Environment(\.colorScheme) private var colorScheme
+    @Namespace private var selectionHighlightNamespace
+    @State private var selectionFeedback = UISelectionFeedbackGenerator()
 
     let selectedTab: RootTab
     let onSelect: (RootTab) -> Void
 
+    private var selectionAnimation: Animation {
+        .spring(response: 0.28, dampingFraction: 0.86, blendDuration: 0)
+    }
+
     var body: some View {
-        HStack(spacing: 4) {
+        // Zero spacing and a full-width HStack make every third of the bar a
+        // complete button hit target. Only Button receives input; no custom
+        // drag or tap gesture is installed over the app's scroll views.
+        HStack(spacing: 0) {
             tabButton(.home, title: "首页", symbol: "house")
             tabButton(.forums, title: "进吧", symbol: "square.grid.2x2")
             tabButton(.me, title: "我的", symbol: "person.circle")
         }
+        .frame(maxWidth: .infinity)
         .padding(6)
         .background(glassFrame)
+        .animation(selectionAnimation, value: selectedTab)
+        .onAppear { selectionFeedback.prepare() }
         .accessibilityIdentifier("root-glass-tab-bar")
     }
 
@@ -353,6 +374,10 @@ private struct GlassTabBar: View {
     private func tabButton(_ tab: RootTab, title: String, symbol: String) -> some View {
         let isSelected = selectedTab == tab
         return Button {
+            // UISelectionFeedbackGenerator is available on iOS 15 and gives
+            // the standard system selection feedback without adding gestures.
+            selectionFeedback.selectionChanged()
+            selectionFeedback.prepare()
             onSelect(tab)
         } label: {
             VStack(spacing: 3) {
@@ -364,11 +389,19 @@ private struct GlassTabBar: View {
             }
             .foregroundColor(tabForegroundColor(isSelected: isSelected))
             .frame(maxWidth: .infinity, minHeight: 54)
-            .background(
-                Capsule()
-                    .fill(selectionFillColor(isSelected: isSelected))
-                    .padding(.vertical, 2)
-            )
+            .contentShape(Rectangle())
+            .background {
+                if isSelected {
+                    Capsule()
+                        .fill(selectionFillColor(isSelected: true))
+                        .padding(.horizontal, 2)
+                        .padding(.vertical, 2)
+                        .matchedGeometryEffect(
+                            id: "root-tab-selection",
+                            in: selectionHighlightNamespace
+                        )
+                }
+            }
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier(symbol)
