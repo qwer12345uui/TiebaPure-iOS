@@ -123,4 +123,27 @@ jobs:
           grep -Fq 'GNU GENERAL PUBLIC LICENSE' "$APP/LICENSE"
           test -f "$APP/SwiftProtobuf-Apache-2.0.txt"
           grep -Fq 'Apache License' "$APP/SwiftProtobuf-Apache-2.0.txt"
-          test "$(/usr/libexec/PlistBuddy -c 'Print :CADisableMinimumFrameDurationOnPhone' "$APP/Info.plist")" = true
+          test "$([/usr/libexec/PlistBuddy -c 'Print :CADisableMinimumFrameDurationOnPhone' "$APP/Info.plist")" = true
+
+
+      - name: Package unsigned IPA
+        run: |
+          APP="$DERIVED_DATA/Build/Products/Release-iphoneos/TiebaPure.app"
+          STAGING="$RUNNER_TEMP/tiebapure-ipa"
+          IPA="$RUNNER_TEMP/TiebaPure-unsigned.ipa"
+          rm -rf "$STAGING" "$IPA" "${IPA}.sha256"
+          mkdir -p "$STAGING/Payload"
+          cp -R "$APP" "$STAGING/Payload/TiebaPure.app"
+          ditto -c -k --sequesterRsrc --keepParent "$STAGING/Payload" "$IPA"
+          unzip -l "$IPA" | grep -Fq 'Payload/TiebaPure.app/TiebaPure'
+          shasum -a 256 "$IPA" > "${IPA}.sha256"
+
+      - name: Upload unsigned IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: TiebaPure-unsigned-ipa-${{ github.run_number }}
+          path: |
+            ${{ runner.temp }}/TiebaPure-unsigned.ipa
+            ${{ runner.temp }}/TiebaPure-unsigned.ipa.sha256
+          if-no-files-found: error
+          retention-days: 14
