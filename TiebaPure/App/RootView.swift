@@ -223,237 +223,213 @@ private struct ExternalRouteView: View {
 
 private struct MainTabView: View {
     let account: Account?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var selectedTab: RootTab = .home
     @State private var homeRefreshToken = 0
 
     var body: some View {
-        Group {
-            if #available(iOS 18.0, *) {
-                modernTabView
-            } else {
-                legacyTabView
+        GeometryReader { proxy in
+            ZStack {
+                tabContent(.home)
+                    .offset(
+                        x: RootTabTransitionPolicy.pageOffset(
+                            content: .home,
+                            selected: selectedTab,
+                            pageWidth: proxy.size.width
+                        )
+                    )
+                    .allowsHitTesting(selectedTab == .home)
+
+                tabContent(.forums)
+                    .offset(
+                        x: RootTabTransitionPolicy.pageOffset(
+                            content: .forums,
+                            selected: selectedTab,
+                            pageWidth: proxy.size.width
+                        )
+                    )
+                    .allowsHitTesting(selectedTab == .forums)
+
+                tabContent(.me)
+                    .offset(
+                        x: RootTabTransitionPolicy.pageOffset(
+                            content: .me,
+                            selected: selectedTab,
+                            pageWidth: proxy.size.width
+                        )
+                    )
+                    .allowsHitTesting(selectedTab == .me)
             }
+            .frame(width: proxy.size.width, height: proxy.size.height)
+            .clipped()
+            .animation(tabAnimation, value: selectedTab)
         }
-        .background(
-            TabSelectionObserver {
-                homeRefreshToken += 1
-            }
-        )
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            RootTabBar(
+                selection: $selectedTab,
+                onReselectHome: {
+                    homeRefreshToken += 1
+                },
+                selectionAnimation: tabAnimation,
+                reduceMotion: reduceMotion
+            )
+        }
     }
 
-    @available(iOS 18.0, *)
-    private var modernTabView: some View {
-        TabView(selection: tabSelection) {
-            Tab("首页", systemImage: "house", value: RootTab.home) {
-                HomeView(account: account, refreshToken: homeRefreshToken)
-            }
-
-            Tab("进吧", systemImage: "square.grid.2x2", value: RootTab.forums) {
-                ForumHubView(account: account)
-            }
-
-            Tab("我的", systemImage: "person.circle", value: RootTab.me) {
-                MeView(account: account)
-            }
-        }
-    }
-
-    private var legacyTabView: some View {
-        TabView(selection: tabSelection) {
+    @ViewBuilder
+    private func tabContent(_ tab: RootTab) -> some View {
+        switch tab {
+        case .home:
             HomeView(account: account, refreshToken: homeRefreshToken)
-                .tabItem {
-                    Label("首页", systemImage: "house")
-                }
-                .tag(RootTab.home)
-
+        case .forums:
             ForumHubView(account: account)
-                .tabItem {
-                    Label("进吧", systemImage: "square.grid.2x2")
-                }
-                .tag(RootTab.forums)
-
+        case .me:
             MeView(account: account)
-                .tabItem {
-                    Label("我的", systemImage: "person.circle")
-                }
-                .tag(RootTab.me)
         }
     }
 
-    private var tabSelection: Binding<RootTab> {
-        Binding(
-            get: { selectedTab },
-            set: { newValue in
-                selectedTab = newValue
-            }
-        )
+    private var tabAnimation: Animation? {
+        reduceMotion ? nil : .easeInOut(duration: RootTabTransitionPolicy.duration)
     }
 }
 
-enum RootTab: Hashable {
+private struct RootTabBar: View {
+    @Binding var selection: RootTab
+    let onReselectHome: () -> Void
+    let selectionAnimation: Animation?
+    let reduceMotion: Bool
+    @Namespace private var selectionNamespace
+
+    var body: some View {
+        HStack(spacing: 8) {
+            ForEach(RootTab.allCases, id: \.self) { tab in
+                tabButton(for: tab)
+            }
+        }
+        .frame(maxWidth: 420)
+        .padding(.horizontal, 16)
+        .padding(.top, 8)
+        .padding(.bottom, 6)
+        .frame(maxWidth: .infinity)
+        .background(.bar)
+        .overlay(alignment: .top) {
+            Divider()
+        }
+    }
+
+    private func tabButton(for tab: RootTab) -> some View {
+        let isSelected = selection == tab
+        return Button {
+            guard tab != selection else {
+                if RootTabTransitionPolicy.shouldRefreshHome(
+                    current: selection,
+                    requested: tab
+                ) {
+                    onReselectHome()
+                }
+                return
+            }
+
+            withAnimation(selectionAnimation) {
+                selection = tab
+            }
+        } label: {
+            VStack(spacing: 3) {
+                Image(systemName: isSelected ? tab.selectedSystemImage : tab.systemImage)
+                    .font(.system(size: 17, weight: .semibold))
+                    .frame(height: 20)
+                Text(tab.title)
+                    .font(.caption2.weight(isSelected ? .semibold : .regular))
+                    .lineLimit(1)
+            }
+            .foregroundStyle(
+                isSelected ? TiebaPureTheme.ColorToken.primaryAccent : Color.secondary
+            )
+            .frame(maxWidth: .infinity, minHeight: 49)
+            .contentShape(Capsule())
+            .background {
+                if isSelected {
+                    Capsule()
+                        .fill(TiebaPureTheme.ColorToken.primaryAccent.opacity(0.16))
+                        .matchedGeometryEffect(id: "root-tab-selection", in: selectionNamespace)
+                }
+            }
+        }
+        .buttonStyle(RootTabButtonStyle(reduceMotion: reduceMotion))
+        .accessibilityIdentifier(tab.systemImage)
+        .accessibilityLabel(tab.title)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+}
+
+private struct RootTabButtonStyle: ButtonStyle {
+    let reduceMotion: Bool
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .opacity(configuration.isPressed ? 0.74 : 1)
+            .scaleEffect(configuration.isPressed && reduceMotion == false ? 0.96 : 1)
+            .animation(
+                reduceMotion ? nil : .easeOut(duration: 0.12),
+                value: configuration.isPressed
+            )
+    }
+}
+
+enum RootTab: Int, CaseIterable, Hashable {
     case home
     case forums
     case me
+
+    var index: Int { rawValue }
+
+    var title: String {
+        switch self {
+        case .home:
+            "首页"
+        case .forums:
+            "进吧"
+        case .me:
+            "我的"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .home:
+            "house"
+        case .forums:
+            "square.grid.2x2"
+        case .me:
+            "person.circle"
+        }
+    }
+
+    var selectedSystemImage: String {
+        switch self {
+        case .home:
+            "house.fill"
+        case .forums:
+            "square.grid.2x2.fill"
+        case .me:
+            "person.circle.fill"
+        }
+    }
 }
 
-private struct TabSelectionObserver: UIViewControllerRepresentable {
-    let onReselectHome: () -> Void
+enum RootTabTransitionPolicy {
+    static let duration = 0.30
 
-    func makeCoordinator() -> Coordinator {
-        Coordinator(onReselectHome: onReselectHome)
+    static func pageOffset(
+        content: RootTab,
+        selected: RootTab,
+        pageWidth: CGFloat
+    ) -> CGFloat {
+        CGFloat(content.index - selected.index) * pageWidth
     }
 
-    func makeUIViewController(context: Context) -> Controller {
-        Controller(coordinator: context.coordinator)
-    }
-
-    func updateUIViewController(_ controller: Controller, context: Context) {
-        context.coordinator.onReselectHome = onReselectHome
-        controller.coordinator = context.coordinator
-        controller.isObservationActive = true
-        controller.attachToTabBarController()
-    }
-
-    static func dismantleUIViewController(_ controller: Controller, coordinator: Coordinator) {
-        controller.isObservationActive = false
-        coordinator.detach()
-    }
-
-    final class Controller: UIViewController {
-        var coordinator: Coordinator
-        var isObservationActive = true
-
-        init(coordinator: Coordinator) {
-            self.coordinator = coordinator
-            super.init(nibName: nil, bundle: nil)
-        }
-
-        @available(*, unavailable)
-        required init?(coder: NSCoder) {
-            fatalError("init(coder:) has not been implemented")
-        }
-
-        override func viewDidAppear(_ animated: Bool) {
-            super.viewDidAppear(animated)
-            attachToTabBarController()
-        }
-
-        func attachToTabBarController() {
-            guard isObservationActive else { return }
-            var visited = Set<ObjectIdentifier>()
-            guard let tabBarController = tabBarController ?? findTabBarController(
-                from: view.window?.rootViewController,
-                visited: &visited
-            ) else {
-                return
-            }
-            coordinator.attach(to: tabBarController)
-            DispatchQueue.main.async { [weak self] in
-                guard let self, self.isObservationActive else { return }
-                var currentVisited = Set<ObjectIdentifier>()
-                guard let currentController = self.tabBarController ?? self.findTabBarController(
-                    from: self.view.window?.rootViewController,
-                    visited: &currentVisited
-                ) else {
-                    return
-                }
-                self.coordinator.attach(to: currentController)
-            }
-        }
-
-        private func findTabBarController(
-            from controller: UIViewController?,
-            visited: inout Set<ObjectIdentifier>
-        ) -> UITabBarController? {
-            guard let controller else { return nil }
-
-            let identifier = ObjectIdentifier(controller)
-            guard visited.insert(identifier).inserted else { return nil }
-
-            if let tabBarController = controller as? UITabBarController {
-                return tabBarController
-            }
-
-            if let found = findTabBarController(from: controller.presentedViewController, visited: &visited) {
-                return found
-            }
-
-            for child in controller.children {
-                if let found = findTabBarController(from: child, visited: &visited) {
-                    return found
-                }
-            }
-
-            return nil
-        }
-    }
-
-    final class Coordinator: NSObject, UITabBarControllerDelegate {
-        var onReselectHome: () -> Void
-        private weak var observedController: UITabBarController?
-        private weak var previousDelegate: UITabBarControllerDelegate?
-
-        init(onReselectHome: @escaping () -> Void) {
-            self.onReselectHome = onReselectHome
-        }
-
-        func attach(to tabBarController: UITabBarController) {
-            guard observedController !== tabBarController || tabBarController.delegate !== self else {
-                return
-            }
-            detach()
-            if tabBarController.delegate !== self {
-                previousDelegate = tabBarController.delegate
-            }
-            observedController = tabBarController
-            tabBarController.delegate = self
-        }
-
-        func detach() {
-            if let observedController, observedController.delegate === self {
-                observedController.delegate = previousDelegate
-            }
-            observedController = nil
-            previousDelegate = nil
-        }
-
-        func tabBarController(
-            _ tabBarController: UITabBarController,
-            shouldSelect viewController: UIViewController
-        ) -> Bool {
-            let permitsSelection = previousDelegate?.tabBarController?(
-                tabBarController,
-                shouldSelect: viewController
-            ) ?? true
-            guard permitsSelection else { return false }
-
-            if tabBarController.selectedViewController === viewController,
-               tabBarController.viewControllers?.first === viewController {
-                let callback = onReselectHome
-                DispatchQueue.main.async {
-                    callback()
-                }
-            }
-            return true
-        }
-
-        func tabBarController(
-            _ tabBarController: UITabBarController,
-            didSelect viewController: UIViewController
-        ) {
-            previousDelegate?.tabBarController?(tabBarController, didSelect: viewController)
-        }
-
-        override func responds(to aSelector: Selector!) -> Bool {
-            super.responds(to: aSelector) || previousDelegate?.responds(to: aSelector) == true
-        }
-
-        override func forwardingTarget(for aSelector: Selector!) -> Any? {
-            if previousDelegate?.responds(to: aSelector) == true {
-                return previousDelegate
-            }
-            return super.forwardingTarget(for: aSelector)
-        }
+    static func shouldRefreshHome(current: RootTab, requested: RootTab) -> Bool {
+        current == .home && requested == .home
     }
 }
 

@@ -3064,6 +3064,47 @@ final class TiebaPureSmokeTests: XCTestCase {
         XCTAssertNil(RootTabHitTester.tab(at: CGPoint(x: 320, y: 20), itemFrames: []))
     }
 
+    func testRootTabTransitionPolicySlidesPagesInSelectionDirection() {
+        let pageWidth: CGFloat = 320
+
+        XCTAssertEqual(
+            RootTabTransitionPolicy.pageOffset(
+                content: .home,
+                selected: .forums,
+                pageWidth: pageWidth
+            ),
+            -pageWidth
+        )
+        XCTAssertEqual(
+            RootTabTransitionPolicy.pageOffset(
+                content: .forums,
+                selected: .forums,
+                pageWidth: pageWidth
+            ),
+            0
+        )
+        XCTAssertEqual(
+            RootTabTransitionPolicy.pageOffset(
+                content: .me,
+                selected: .home,
+                pageWidth: pageWidth
+            ),
+            pageWidth * 2
+        )
+    }
+
+    func testRootTabTransitionPolicyRefreshesOnlyWhenHomeIsReselected() {
+        XCTAssertTrue(
+            RootTabTransitionPolicy.shouldRefreshHome(current: .home, requested: .home)
+        )
+        XCTAssertFalse(
+            RootTabTransitionPolicy.shouldRefreshHome(current: .forums, requested: .forums)
+        )
+        XCTAssertFalse(
+            RootTabTransitionPolicy.shouldRefreshHome(current: .home, requested: .me)
+        )
+    }
+
     func testPaginationPrefetchStartsBeforeTheLastItem() {
         XCTAssertFalse(PaginationPrefetchPolicy.shouldLoadMore(currentIndex: 14, totalCount: 20))
         XCTAssertTrue(PaginationPrefetchPolicy.shouldLoadMore(currentIndex: 15, totalCount: 20))
