@@ -123,4 +123,46 @@ jobs:
           grep -Fq 'GNU GENERAL PUBLIC LICENSE' "$APP/LICENSE"
           test -f "$APP/SwiftProtobuf-Apache-2.0.txt"
           grep -Fq 'Apache License' "$APP/SwiftProtobuf-Apache-2.0.txt"
-          test "$(/usr/libexec/PlistBuddy -c 'Print :CADisableMinimumFrameDurationOnPhone' "$APP/Info.plist")" = true
+          test "$([/usr/libexec/PlistBuddy -c 'Print :CADisableMinimumFrameDurationOnPhone' "$APP/Info.plist")" = true
+
+
+  unsigned-ipa:
+    name: Unsigned IPA
+    runs-on: macos-26
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+
+      - name: Build unsigned release app
+        run: |
+          xcodebuild -project TiebaPure.xcodeproj -scheme TiebaPure \
+            -configuration Release -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath "$DERIVED_DATA" \
+            build CODE_SIGNING_ALLOWED=NO
+          APP="$DERIVED_DATA/Build/Products/Release-iphoneos/TiebaPure.app"
+          test -d "$APP"
+          test -f "$APP/TiebaPure"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :MinimumOSVersion' "$APP/Info.plist")" = 16.4
+
+      - name: Package unsigned IPA
+        run: |
+          APP="$DERIVED_DATA/Build/Products/Release-iphoneos/TiebaPure.app"
+          STAGING="$RUNNER_TEMP/tiebapure-ipa"
+          IPA="$RUNNER_TEMP/TiebaPure-unsigned.ipa"
+          rm -rf "$STAGING" "$IPA" "${IPA}.sha256"
+          mkdir -p "$STAGING/Payload"
+          cp -R "$APP" "$STAGING/Payload/TiebaPure.app"
+          ditto -c -k --sequesterRsrc --keepParent "$STAGING/Payload" "$IPA"
+          unzip -l "$IPA" | grep -Fq 'Payload/TiebaPure.app/TiebaPure'
+          shasum -a 256 "$IPA" | awk '{print $1 "  TiebaPure-unsigned.ipa"}' > "${IPA}.sha256"
+
+      - name: Upload unsigned IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: TiebaPure-unsigned-ipa-${{ github.run_number }}
+          path: |
+            ${{ runner.temp }}/TiebaPure-unsigned.ipa
+            ${{ runner.temp }}/TiebaPure-unsigned.ipa.sha256
+          if-no-files-found: error
+          retention-days: 14
