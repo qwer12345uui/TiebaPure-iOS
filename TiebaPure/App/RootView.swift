@@ -290,75 +290,168 @@ private struct MainTabView: View {
     let account: Account?
     @State private var selectedTab: RootTab = .home
     @State private var homeRefreshToken = 0
+    @State private var isFloatingTabBarHidden = false
 
     var body: some View {
-        Group {
-            if #available(iOS 18.0, *) {
-                modernTabView
-            } else {
-                legacyTabView
+        ZStack {
+            selectedContent
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        // `safeAreaInset` is available on iOS 15 and reserves real layout
+        // space for the bar. Unlike an overlay or drag gesture, it neither
+        // steals scroll-view touches nor covers a composer action bar.
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            if isFloatingTabBarHidden == false {
+                FloatingGlassTabBar(selectedTab: selectedTab, select: select)
+                    .padding(.horizontal, TiebaPureTheme.Spacing.md)
+                    .padding(.top, TiebaPureTheme.Spacing.xs)
+                    .padding(.bottom, TiebaPureTheme.Spacing.xs)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
-        .background(
-            TabSelectionObserver {
+        .onPreferenceChange(FloatingTabBarHiddenPreferenceKey.self) { isHidden in
+            withAnimation(.easeInOut(duration: 0.20)) {
+                isFloatingTabBarHidden = isHidden
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var selectedContent: some View {
+        switch selectedTab {
+        case .home:
+            HomeView(account: account, refreshToken: homeRefreshToken)
+        case .me:
+            MeView(account: account)
+        case .forums:
+            ForumHubView(account: account)
+        }
+    }
+
+    private func select(_ tab: RootTab) {
+        let feedback = UISelectionFeedbackGenerator()
+        feedback.prepare()
+        feedback.selectionChanged()
+
+        guard selectedTab != tab else {
+            if tab == .home {
                 homeRefreshToken += 1
             }
-        )
-    }
-
-    @available(iOS 18.0, *)
-    private var modernTabView: some View {
-        TabView(selection: tabSelection) {
-            Tab("首页", systemImage: "house", value: RootTab.home) {
-                HomeView(account: account, refreshToken: homeRefreshToken)
-            }
-
-            Tab("进吧", systemImage: "square.grid.2x2", value: RootTab.forums) {
-                ForumHubView(account: account)
-            }
-
-            Tab("我的", systemImage: "person.circle", value: RootTab.me) {
-                MeView(account: account)
-            }
+            return
         }
-    }
-
-    private var legacyTabView: some View {
-        TabView(selection: tabSelection) {
-            HomeView(account: account, refreshToken: homeRefreshToken)
-                .tabItem {
-                    Label("首页", systemImage: "house")
-                }
-                .tag(RootTab.home)
-
-            ForumHubView(account: account)
-                .tabItem {
-                    Label("进吧", systemImage: "square.grid.2x2")
-                }
-                .tag(RootTab.forums)
-
-            MeView(account: account)
-                .tabItem {
-                    Label("我的", systemImage: "person.circle")
-                }
-                .tag(RootTab.me)
+        withAnimation(.spring(response: 0.28, dampingFraction: 0.84)) {
+            selectedTab = tab
         }
-    }
-
-    private var tabSelection: Binding<RootTab> {
-        Binding(
-            get: { selectedTab },
-            set: { newValue in
-                selectedTab = newValue
-            }
-        )
     }
 }
 
-enum RootTab: Hashable {
+private struct FloatingGlassTabBar: View {
+    let selectedTab: RootTab
+    let select: (RootTab) -> Void
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        HStack(spacing: TiebaPureTheme.Spacing.xxs) {
+            ForEach(RootTab.allCases) { tab in
+                Button {
+                    select(tab)
+                } label: {
+                    Label(tab.title, systemImage: tab.systemImage)
+                        .font(.subheadline.weight(.bold))
+                        .foregroundStyle(foregroundColor(for: tab))
+                        .frame(maxWidth: .infinity, minHeight: 50)
+                        .contentShape(Rectangle())
+                        .background {
+                            Capsule(style: .continuous)
+                                .fill(selectionColor(for: tab))
+                        }
+                        .overlay {
+                            Capsule(style: .continuous)
+                                .stroke(selectionBorderColor(for: tab), lineWidth: 0.8)
+                        }
+                }
+                .buttonStyle(.plain)
+                .frame(maxWidth: .infinity)
+                .accessibilityLabel(tab.title)
+                .accessibilityIdentifier("root-tab-\(tab.accessibilityIdentifier)")
+                .accessibilityAddTraits(selectedTab == tab ? .isSelected : [])
+            }
+        }
+        .padding(5)
+        .background(.ultraThinMaterial, in: Capsule(style: .continuous))
+        .overlay {
+            Capsule(style: .continuous)
+                .stroke(glassBorderColor, lineWidth: 1)
+        }
+        .shadow(
+            color: Color.black.opacity(colorScheme == .dark ? 0.30 : 0.14),
+            radius: 14,
+            y: 7
+        )
+        .accessibilityIdentifier("root-glass-tab-bar")
+    }
+
+    private var glassBorderColor: Color {
+        colorScheme == .dark ? Color.white.opacity(0.34) : Color.white.opacity(0.82)
+    }
+
+    private func foregroundColor(for tab: RootTab) -> Color {
+        if selectedTab == tab {
+            return Color(uiColor: .systemPink)
+        }
+        return colorScheme == .dark ? Color.white.opacity(0.78) : Color.primary.opacity(0.72)
+    }
+
+    private func selectionColor(for tab: RootTab) -> Color {
+        guard selectedTab == tab else { return .clear }
+        return Color(uiColor: .systemPink).opacity(colorScheme == .dark ? 0.42 : 0.16)
+    }
+
+    private func selectionBorderColor(for tab: RootTab) -> Color {
+        guard selectedTab == tab else { return .clear }
+        return colorScheme == .dark ? Color.white.opacity(0.30) : Color.white.opacity(0.70)
+    }
+}
+
+enum RootTab: Hashable, CaseIterable, Identifiable {
     case home
-    case forums
     case me
+    case forums
+
+    var id: Self { self }
+
+    var title: String {
+        switch self {
+        case .home:
+            return "首页"
+        case .me:
+            return "我的"
+        case .forums:
+            return "搜索"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .home:
+            return "house.fill"
+        case .me:
+            return "person.crop.circle.fill"
+        case .forums:
+            return "magnifyingglass"
+        }
+    }
+
+    var accessibilityIdentifier: String {
+        switch self {
+        case .home:
+            return "home"
+        case .me:
+            return "me"
+        case .forums:
+            return "search"
+        }
+    }
 }
 
 private struct TabSelectionObserver: UIViewControllerRepresentable {
@@ -525,9 +618,9 @@ extension RootTab {
         case 0:
             self = .home
         case 1:
-            self = .forums
-        case 2:
             self = .me
+        case 2:
+            self = .forums
         default:
             return nil
         }

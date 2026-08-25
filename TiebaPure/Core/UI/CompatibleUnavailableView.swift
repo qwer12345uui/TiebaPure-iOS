@@ -312,15 +312,27 @@ private struct CompatibleActivitySheet: UIViewControllerRepresentable {
 }
 
 
+/// Lets screens that hide the system tab bar also hide the root's iOS 15
+/// floating tab chrome. Preferences flow through both NavigationView and
+/// NavigationStack without adding recognizers or overlay hit targets.
+struct FloatingTabBarHiddenPreferenceKey: PreferenceKey {
+    static var defaultValue = false
+
+    static func reduce(value: inout Bool, nextValue: () -> Bool) {
+        value = value || nextValue()
+    }
+}
+
 extension View {
-    /// Hides the tab bar where SwiftUI exposes the per-bar toolbar API. iOS 15
-    /// keeps the default behavior rather than calling an unavailable modifier.
+    /// Hides the tab bar where SwiftUI exposes the per-bar toolbar API and
+    /// communicates the same intent to the iOS 15-compatible floating shell.
     @ViewBuilder
     func compatibleTabBarHidden() -> some View {
         if #available(iOS 16.0, *) {
             toolbar(.hidden, for: .tabBar)
+                .preference(key: FloatingTabBarHiddenPreferenceKey.self, value: true)
         } else {
-            self
+            preference(key: FloatingTabBarHiddenPreferenceKey.self, value: true)
         }
     }
 }

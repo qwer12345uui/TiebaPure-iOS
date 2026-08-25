@@ -3163,8 +3163,8 @@ final class TiebaPureSmokeTests: XCTestCase {
             CGRect(x: 440, y: 0, width: 80, height: 49)
         ]
         XCTAssertEqual(RootTabHitTester.tab(at: CGPoint(x: 320, y: 20), itemFrames: centeredIPadFrames), .home)
-        XCTAssertEqual(RootTabHitTester.tab(at: CGPoint(x: 400, y: 20), itemFrames: centeredIPadFrames), .forums)
-        XCTAssertEqual(RootTabHitTester.tab(at: CGPoint(x: 480, y: 20), itemFrames: centeredIPadFrames), .me)
+        XCTAssertEqual(RootTabHitTester.tab(at: CGPoint(x: 400, y: 20), itemFrames: centeredIPadFrames), .me)
+        XCTAssertEqual(RootTabHitTester.tab(at: CGPoint(x: 480, y: 20), itemFrames: centeredIPadFrames), .forums)
         XCTAssertNil(RootTabHitTester.tab(at: CGPoint(x: 20, y: 20), itemFrames: centeredIPadFrames))
         XCTAssertNil(RootTabHitTester.tab(at: CGPoint(x: 320, y: 20), itemFrames: []))
     }

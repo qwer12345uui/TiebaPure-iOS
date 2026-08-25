@@ -60,6 +60,8 @@ struct SearchResultsView: View {
     @State private var requestGeneration = 0
     @State private var loadTask: Task<SearchResultsPage, Error>?
     @State private var showsHistoryPersistenceError = false
+    @State private var resolvedScopeForum: Forum?
+    @State private var didResolveScopeForumAvatar = false
 
     init(
         account: Account?,
@@ -81,6 +83,11 @@ struct SearchResultsView: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            if let scopedForum = displayedScopeForum {
+                forumScopeHeader(scopedForum)
+                    .readableWidth()
+            }
+
             searchBar
                 .readableWidth()
 
@@ -134,6 +141,9 @@ struct SearchResultsView: View {
             }
             await reload()
         }
+        .task {
+            await resolveScopeForumAvatarIfNeeded()
+        }
         .onChange(of: account?.sessionIdentity) { _ in
             requestGeneration += 1
             loadTask?.cancel()
@@ -165,6 +175,38 @@ struct SearchResultsView: View {
             Text("未能保存搜索历史更改，请稍后重试。")
         }
         .fullScreenInteractiveNavigationPop()
+    }
+
+    private var originalScopeForum: Forum? {
+        guard case let .forum(forum) = scope else { return nil }
+        return forum
+    }
+
+    private var displayedScopeForum: Forum? {
+        resolvedScopeForum ?? originalScopeForum
+    }
+
+    private func forumScopeHeader(_ forum: Forum) -> some View {
+        HStack(spacing: TiebaPureTheme.Spacing.sm) {
+            AvatarView(url: forum.avatarURL, title: forum.displayName, size: 34)
+                .accessibilityHidden(true)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("本吧搜索")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Text(forum.displayName)
+                    .font(.subheadline.weight(.semibold))
+                    .lineLimit(1)
+            }
+
+            Spacer(minLength: TiebaPureTheme.Spacing.sm)
+        }
+        .padding(.horizontal, TiebaPureTheme.Spacing.md)
+        .padding(.vertical, TiebaPureTheme.Spacing.xs)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("本吧搜索：\(forum.displayName)")
+        .accessibilityIdentifier("search-scope-forum-avatar")
     }
 
     private var searchBar: some View {
@@ -642,6 +684,7 @@ struct SearchResultsView: View {
             ) }
             loadTask = task
             let pageResult = try await task.value
+            cacheScopeForumAvatar(from: pageResult.results)
             guard generation == requestGeneration,
                   requestedSession == account?.sessionIdentity,
                   key == currentRequestKey(page: requestedPage) else { return }
@@ -692,6 +735,63 @@ struct SearchResultsView: View {
                 consecutiveHiddenPageCount: continuation.consecutiveHiddenPageCount
             )
         }
+    }
+
+    private func resolveScopeForumAvatarIfNeeded() async {
+        guard didResolveScopeForumAvatar == false,
+              let forum = originalScopeForum,
+              forum.avatarURL == nil else {
+            return
+        }
+        didResolveScopeForumAvatar = true
+        let requestedSession = account?.sessionIdentity
+
+        do {
+            let threads = try await environment.api.forumThreads(
+                account: account,
+                forumName: forum.name,
+                page: 1,
+                category: .replyTime
+            )
+            guard Task.isCancelled == false,
+                  requestedSession == account?.sessionIdentity else {
+                return
+            }
+            guard let source = threads.first(where: { $0.forumAvatarURL != nil }) else { return }
+            applyScopeForumAvatar(
+                source.forumAvatarURL,
+                forumID: source.forumID,
+                fallback: forum
+            )
+        } catch is CancellationError {
+            return
+        } catch {
+            // The search screen remains usable when a forum has no visible
+            // threads or the lightweight avatar lookup is unavailable.
+        }
+    }
+
+    private func cacheScopeForumAvatar(from searchResults: [SearchResult]) {
+        guard let forum = originalScopeForum,
+              let source = searchResults.first(where: { $0.forumAvatarURL != nil }) else {
+            return
+        }
+        applyScopeForumAvatar(
+            source.forumAvatarURL,
+            forumID: source.forumID,
+            fallback: forum
+        )
+    }
+
+    private func applyScopeForumAvatar(_ avatarURL: URL?, forumID: Int64?, fallback: Forum) {
+        guard let avatarURL else { return }
+        var resolved = resolvedScopeForum ?? fallback
+        resolved.avatarURL = avatarURL
+        if resolved.id <= 0, let forumID, forumID > 0 {
+            resolved.id = forumID
+        }
+        resolvedScopeForum = resolved
+        RecentForumStore.shared.save(resolved)
     }
 
     private func currentRequestKey(page: Int) -> SearchRequestKey {

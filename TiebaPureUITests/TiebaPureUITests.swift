@@ -15,7 +15,7 @@ final class TiebaPureUITests: XCTestCase {
                 || rootTab("首页", in: app).exists
         )
         XCTAssertTrue(rootTab("首页", in: app).exists)
-        XCTAssertTrue(rootTab("进吧", in: app).exists)
+        XCTAssertTrue(rootTab("搜索", in: app).exists)
         XCTAssertTrue(rootTab("我的", in: app).exists)
         XCTAssertTrue(threadRows(in: app).firstMatch.waitForExistence(timeout: 45))
 
@@ -684,7 +684,7 @@ final class TiebaPureUITests: XCTestCase {
 
     func testLoggedInUserCanUnfollowForumAndOpenFollowerList() {
         let app = launchApp(account: "loggedIn")
-        rootTab("进吧", in: app).tap()
+        rootTab("搜索", in: app).tap()
 
         let forumRow = app.buttons.matching(identifier: "forum-hub-forum-row").firstMatch
         XCTAssertTrue(forumRow.waitForExistence(timeout: 8))
@@ -1729,7 +1729,7 @@ final class TiebaPureUITests: XCTestCase {
             additionalArguments: ["UITEST_EXTENDED_REFRESH_ANIMATION"]
         )
 
-        rootTab("进吧", in: app).tap()
+        rootTab("搜索", in: app).tap()
         let forumField = app.textFields["输入吧名"]
         XCTAssertTrue(forumField.waitForExistence(timeout: 10))
         forumField.tap()
@@ -1926,7 +1926,7 @@ final class TiebaPureUITests: XCTestCase {
     func testForumHubAndMeKeepLoginOutOfHome() {
         let app = launchApp()
 
-        rootTab("进吧", in: app).tap()
+        rootTab("搜索", in: app).tap()
         XCTAssertTrue(app.navigationBars["进吧"].waitForExistence(timeout: 10))
         XCTAssertTrue(app.textFields["输入吧名"].exists)
 
@@ -1950,7 +1950,7 @@ final class TiebaPureUITests: XCTestCase {
             ]
         )
 
-        rootTab("进吧", in: app).tap()
+        rootTab("搜索", in: app).tap()
         let navigationBar = app.navigationBars["进吧"]
         let title = navigationBar.staticTexts["进吧"]
         let forumList = app.descendants(matching: .any)["forum-hub-list"]
@@ -2564,7 +2564,7 @@ final class TiebaPureUITests: XCTestCase {
         XCTAssertEqual(XCTWaiter.wait(for: [dismissed], timeout: 5), .completed)
         XCTAssertTrue(app.navigationBars["首页"].exists)
         XCTAssertTrue(rootTab("首页", in: app).waitForExistence(timeout: 5))
-        XCTAssertTrue(rootTab("进吧", in: app).exists)
+        XCTAssertTrue(rootTab("搜索", in: app).exists)
         XCTAssertTrue(rootTab("我的", in: app).exists)
     }
 
@@ -2594,7 +2594,7 @@ final class TiebaPureUITests: XCTestCase {
         middleSwipeRight(in: app)
         XCTAssertTrue(app.navigationBars["首页"].waitForExistence(timeout: 5))
         XCTAssertTrue(rootTab("首页", in: app).waitForExistence(timeout: 5))
-        XCTAssertTrue(rootTab("进吧", in: app).exists)
+        XCTAssertTrue(rootTab("搜索", in: app).exists)
         XCTAssertTrue(rootTab("我的", in: app).exists)
     }
 
@@ -2613,7 +2613,7 @@ final class TiebaPureUITests: XCTestCase {
         XCTAssertEqual(XCTWaiter.wait(for: [dismissed], timeout: 5), .completed)
         XCTAssertTrue(app.navigationBars["首页"].exists)
         XCTAssertTrue(rootTab("首页", in: app).waitForExistence(timeout: 5))
-        XCTAssertTrue(rootTab("进吧", in: app).exists)
+        XCTAssertTrue(rootTab("搜索", in: app).exists)
         XCTAssertTrue(rootTab("我的", in: app).exists)
     }
 
@@ -2853,7 +2853,7 @@ final class TiebaPureUITests: XCTestCase {
 
     func testForumUserProfileRightSwipeReturnsOnlyToForum() {
         let app = launchApp()
-        rootTab("进吧", in: app).tap()
+        rootTab("搜索", in: app).tap()
 
         let forumField = app.textFields["输入吧名"]
         XCTAssertTrue(forumField.waitForExistence(timeout: 10))
@@ -2882,7 +2882,7 @@ final class TiebaPureUITests: XCTestCase {
 
     func testForumThreadUserProfileRightSwipeNeverSkipsThread() {
         let app = launchApp()
-        rootTab("进吧", in: app).tap()
+        rootTab("搜索", in: app).tap()
 
         let forumField = app.textFields["输入吧名"]
         XCTAssertTrue(forumField.waitForExistence(timeout: 10))
@@ -5309,7 +5309,7 @@ final class TiebaPureUITests: XCTestCase {
 
     func testForumListMediaOpensPreviewAndWholeRowOpensThread() {
         let app = launchApp(scenario: "forumPinned")
-        rootTab("进吧", in: app).tap()
+        rootTab("搜索", in: app).tap()
         let forumField = app.textFields["输入吧名"]
         XCTAssertTrue(forumField.waitForExistence(timeout: 8))
         forumField.tap()
@@ -5359,7 +5359,7 @@ final class TiebaPureUITests: XCTestCase {
             scenario: "imageGesture",
             additionalArguments: ["UITEST_READING_MEDIA_MANUAL"]
         )
-        rootTab("进吧", in: app).tap()
+        rootTab("搜索", in: app).tap()
         let forumField = app.textFields["输入吧名"]
         XCTAssertTrue(forumField.waitForExistence(timeout: 8))
         forumField.tap()
@@ -5393,7 +5393,7 @@ final class TiebaPureUITests: XCTestCase {
 
     func testForumLatestMenuSwitchesReplyPublishAndFeaturedCategories() {
         let app = launchApp(scenario: "forumCategories")
-        rootTab("进吧", in: app).tap()
+        rootTab("搜索", in: app).tap()
         let forumField = app.textFields["输入吧名"]
         XCTAssertTrue(forumField.waitForExistence(timeout: 8))
         forumField.tap()
@@ -5480,7 +5480,7 @@ final class TiebaPureUITests: XCTestCase {
 
     func testForumCategoryRaceKeepsOnlyLatestSelection() {
         let app = launchApp(scenario: "forumCategoryRace")
-        rootTab("进吧", in: app).tap()
+        rootTab("搜索", in: app).tap()
         let forumField = app.textFields["输入吧名"]
         XCTAssertTrue(forumField.waitForExistence(timeout: 8))
         forumField.tap()
@@ -5516,7 +5516,7 @@ final class TiebaPureUITests: XCTestCase {
 
     func testForumToolbarSearchRefreshAndBlockBehaviors() {
         let app = launchApp(scenario: "emptyThenSuccess")
-        rootTab("进吧", in: app).tap()
+        rootTab("搜索", in: app).tap()
         let forumField = app.textFields["输入吧名"]
         XCTAssertTrue(forumField.waitForExistence(timeout: 8))
         forumField.tap()
@@ -5572,7 +5572,7 @@ final class TiebaPureUITests: XCTestCase {
     func testSwitchingToHomeDoesNotTriggerReselectRefresh() {
         let app = launchApp()
         XCTAssertTrue(threadRows(in: app).firstMatch.waitForExistence(timeout: 8))
-        rootTab("进吧", in: app).tap()
+        rootTab("搜索", in: app).tap()
         XCTAssertTrue(app.navigationBars["进吧"].waitForExistence(timeout: 8))
 
         rootTab("首页", in: app).tap()
@@ -5585,10 +5585,10 @@ final class TiebaPureUITests: XCTestCase {
             throw XCTSkip("仅在 iPad 设备矩阵中运行。")
         }
         let app = launchApp()
-        rootTab("进吧", in: app).tap()
+        rootTab("搜索", in: app).tap()
         XCTAssertTrue(app.navigationBars["进吧"].waitForExistence(timeout: 8))
 
-        let tabElements = ["首页", "进吧", "我的"].map { rootTab($0, in: app) }
+        let tabElements = ["首页", "我的", "搜索"].map { rootTab($0, in: app) }
         XCTAssertTrue(tabElements.allSatisfy(\.exists))
         let leadingX = tabElements.map(\.frame.minX).min() ?? 0
         XCTAssertGreaterThan(leadingX, 24)
@@ -5659,7 +5659,7 @@ final class TiebaPureUITests: XCTestCase {
             throw XCTSkip("仅在 iPad 设备矩阵中运行。")
         }
         let app = launchApp()
-        rootTab("进吧", in: app).tap()
+        rootTab("搜索", in: app).tap()
 
         let forumField = app.textFields["输入吧名"]
         XCTAssertTrue(forumField.waitForExistence(timeout: 8))
@@ -5767,9 +5767,16 @@ final class TiebaPureUITests: XCTestCase {
             file: file,
             line: line
         )
+        let bodyEditor = app.textViews["正文内容"]
         XCTAssertTrue(
-            app.textViews["正文内容"].waitForExistence(timeout: 5),
+            bodyEditor.waitForExistence(timeout: 5),
             "回复编辑器必须显示正文输入区",
+            file: file,
+            line: line
+        )
+        XCTAssertTrue(
+            app.buttons["发送"].waitForExistence(timeout: 5),
+            "回复编辑器必须保留发送入口，不能被图片选择器覆盖",
             file: file,
             line: line
         )
@@ -6117,7 +6124,7 @@ final class TiebaPureUITests: XCTestCase {
     }
 
     private func openFirstFollowedForum(in app: XCUIApplication) {
-        rootTab("进吧", in: app).tap()
+        rootTab("搜索", in: app).tap()
         let forumRow = app.buttons.matching(identifier: "forum-hub-forum-row").firstMatch
         XCTAssertTrue(forumRow.waitForExistence(timeout: 8))
         XCTAssertTrue(waitForHittable(forumRow, expected: true, timeout: 5))
@@ -6128,9 +6135,9 @@ final class TiebaPureUITests: XCTestCase {
     private func rootTab(_ label: String, in app: XCUIApplication) -> XCUIElement {
         let symbolIdentifier: String?
         switch label {
-        case "首页": symbolIdentifier = "house"
-        case "进吧": symbolIdentifier = "square.grid.2x2"
-        case "我的": symbolIdentifier = "person.circle"
+        case "首页": symbolIdentifier = "root-tab-home"
+        case "我的": symbolIdentifier = "root-tab-me"
+        case "搜索": symbolIdentifier = "root-tab-search"
         default: symbolIdentifier = nil
         }
         if let symbolIdentifier {

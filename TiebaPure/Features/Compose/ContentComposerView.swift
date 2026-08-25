@@ -131,6 +131,7 @@ struct ContentComposerView: View {
                 onDismissed: onCancel
             )
         }
+        .onAppear(perform: focusReplyBodyIfNeeded)
         .onDisappear {
             photoLoadingTask?.cancel()
         }
@@ -589,6 +590,22 @@ struct ContentComposerView: View {
         onCancel()
     }
 
+    private func focusReplyBodyIfNeeded() {
+        guard target.kind != .newThread,
+              bodyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              focusedField == nil else {
+            return
+        }
+        // The reply sheet should open in its text-first state. Dispatching to
+        // the next run loop lets the sheet complete layout before assigning
+        // focus, which reliably brings up the iOS 15 keyboard without covering
+        // the editor with a media controller.
+        DispatchQueue.main.async {
+            guard focusedField == nil, showsEmoticons == false else { return }
+            focusedField = .body
+        }
+    }
+
     private func preparePhotoData(_ selectedData: [Data]) {
         guard selectedData.isEmpty == false else { return }
         photoLoadingTask?.cancel()
@@ -689,48 +706,94 @@ private struct ModernContentComposerPhotoPicker: View {
     }
 }
 
-private struct LegacyContentComposerPhotoPicker: UIViewControllerRepresentable {
+private struct LegacyContentComposerPhotoPicker: View {
     let maximumSelectionCount: Int
     let onSelection: ([Data]) -> Void
+    @State private var isPresentingPicker = false
+
+    var body: some View {
+        Button {
+            isPresentingPicker = true
+        } label: {
+            pickerLabel
+        }
+        .buttonStyle(.plain)
+        .sheet(isPresented: $isPresentingPicker) {
+            LegacyContentComposerPhotoPickerSheet(
+                maximumSelectionCount: maximumSelectionCount,
+                onSelection: onSelection,
+                onDismiss: { isPresentingPicker = false }
+            )
+            .ignoresSafeArea()
+        }
+    }
+
+    private var pickerLabel: some View {
+        Label("图片", systemImage: "photo.on.rectangle.angled")
+            .frame(minHeight: 44)
+            .padding(.horizontal, 8)
+            .contentShape(Rectangle())
+    }
+}
+
+/// `PHPickerViewController` is a presenting controller, not inline SwiftUI
+/// content. Embedding it directly as a representable replaces the entire
+/// composer on iOS 15, which is why text-only replies previously had no text
+/// field or send button. Present it only after an explicit media-button tap.
+private struct LegacyContentComposerPhotoPickerSheet: UIViewControllerRepresentable {
+    let maximumSelectionCount: Int
+    let onSelection: ([Data]) -> Void
+    let onDismiss: () -> Void
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(onSelection: onSelection)
+        Coordinator(onSelection: onSelection, onDismiss: onDismiss)
     }
 
     func makeUIViewController(context: Context) -> PHPickerViewController {
         var configuration = PHPickerConfiguration(photoLibrary: .shared())
         configuration.filter = .images
         configuration.selectionLimit = maximumSelectionCount
-        return PHPickerViewController(configuration: configuration)
+        let controller = PHPickerViewController(configuration: configuration)
+        controller.delegate = context.coordinator
+        return controller
     }
 
     func updateUIViewController(_ uiViewController: PHPickerViewController, context: Context) {
         context.coordinator.onSelection = onSelection
+        context.coordinator.onDismiss = onDismiss
     }
 
     final class Coordinator: NSObject, PHPickerViewControllerDelegate {
         var onSelection: ([Data]) -> Void
+        var onDismiss: () -> Void
 
-        init(onSelection: @escaping ([Data]) -> Void) {
+        init(
+            onSelection: @escaping ([Data]) -> Void,
+            onDismiss: @escaping () -> Void
+        ) {
             self.onSelection = onSelection
+            self.onDismiss = onDismiss
         }
 
         func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
-            picker.dismiss(animated: true)
+            let selectionHandler = onSelection
+            onDismiss()
             Task {
                 var dataItems: [Data] = []
                 for result in results {
                     guard Task.isCancelled == false else { return }
-                    if let data = try? await loadData(from: result.itemProvider) {
+                    if let data = try? await Self.loadData(from: result.itemProvider) {
                         dataItems.append(data)
                     }
                 }
-                guard Task.isCancelled == false else { return }
-                onSelection(dataItems)
+                guard Task.isCancelled == false, dataItems.isEmpty == false else { return }
+                DispatchQueue.main.async {
+                    selectionHandler(dataItems)
+                }
             }
         }
 
-        private func loadData(from provider: NSItemProvider) async throws -> Data {
+        private static func loadData(from provider: NSItemProvider) async throws -> Data {
             try await withCheckedThrowingContinuation { continuation in
                 provider.loadDataRepresentation(forTypeIdentifier: UTType.image.identifier) { data, error in
                     if let data {
