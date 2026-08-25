@@ -1,0 +1,48 @@
+name: Package unsigned IPA
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: package-unsigned-ipa-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
+  TIEBAPURE_DERIVED_DATA: /tmp/TiebaPurePackageDerivedData
+
+jobs:
+  package:
+    name: package-unsigned-ipa
+    runs-on: macos-26
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Build and package unsigned IPA
+        run: scripts/package-unsigned-ipa.sh
+      - name: Verify packaged metadata
+        run: |
+          IPA=build/TiebaPure-unsigned.ipa
+          test -f "$IPA"
+          WORKDIR="$(mktemp -d)"
+          trap 'rm -rf "$WORKDIR"' EXIT
+          unzip -qq "$IPA" -d "$WORKDIR"
+          APP="$WORKDIR/Payload/TiebaPure.app"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP/Info.plist")" = 1.4.14
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$APP/Info.plist")" = 69
+          test "$(/usr/libexec/PlistBuddy -c 'Print :MinimumOSVersion' "$APP/Info.plist")" = 15.0
+          test "$(/usr/libexec/PlistBuddy -c 'Print :MinimumOSVersion' "$APP/PlugIns/TiebaPureOpenIn.appex/Info.plist")" = 15.0
+          test ! -e "$APP/_CodeSignature"
+          test ! -e "$APP/embedded.mobileprovision"
+      - name: Upload unsigned IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: TiebaPure-unsigned-v1.4.14-ios15
+          path: build/TiebaPure-unsigned.ipa
+          if-no-files-found: error
+          retention-days: 30
