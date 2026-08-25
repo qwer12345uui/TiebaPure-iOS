@@ -452,7 +452,7 @@ struct SavedThreadDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
-                ShareLink(item: threadURL) {
+                CompatibleShareLink(item: threadURL) {
                     Image(systemName: "square.and.arrow.up")
                 }
                 .accessibilityLabel("分享帖子")

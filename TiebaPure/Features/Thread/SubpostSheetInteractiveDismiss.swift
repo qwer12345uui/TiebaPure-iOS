@@ -25,6 +25,19 @@ struct SubpostSheetScrollTopPreferenceKey: PreferenceKey {
     }
 }
 
+private struct SubpostSurfaceClipShape: Shape {
+    let cornerRadius: CGFloat
+
+    func path(in rect: CGRect) -> Path {
+        let roundedPath = UIBezierPath(
+            roundedRect: rect,
+            byRoundingCorners: [.topLeft, .topRight],
+            cornerRadii: CGSize(width: cornerRadius, height: cornerRadius)
+        )
+        return Path(roundedPath.cgPath)
+    }
+}
+
 private enum SubpostLegacyAnimationCompletion {
     case dismiss
     case restore
@@ -174,10 +187,7 @@ struct SubpostSheetInteractiveDismissSurface<Content: View>: View {
                 )
                 .background(Color(uiColor: .systemBackground))
                 .clipShape(
-                    UnevenRoundedRectangle(
-                        topLeadingRadius: 24,
-                        topTrailingRadius: 24
-                    )
+                    SubpostSurfaceClipShape(cornerRadius: 24)
                 )
                 .accessibilityIdentifier("subpost-sheet-surface")
                 .contentShape(Rectangle())

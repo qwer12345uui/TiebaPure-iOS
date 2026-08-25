@@ -803,7 +803,7 @@ struct ThreadDetailView: View {
             Button(action: openThreadInBrowser) {
                 Label("浏览器打开", systemImage: "safari")
             }
-            ShareLink(item: threadWebURL) {
+            CompatibleShareLink(item: threadWebURL) {
                 Label("分享", systemImage: "square.and.arrow.up")
             }
             if resolvedOwnThreadDeletionTarget != nil,

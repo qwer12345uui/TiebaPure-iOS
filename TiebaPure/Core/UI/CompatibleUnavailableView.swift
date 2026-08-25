@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct CompatibleUnavailableView: View {
     let title: LocalizedStringKey
@@ -268,4 +269,44 @@ struct CompatibleViewThatFits<Primary: View, Fallback: View>: View {
             primary()
         }
     }
+}
+
+
+/// A cross-version sharing control. `ShareLink` remains in use where it is
+/// available; iOS 15 presents the equivalent UIKit activity sheet.
+struct CompatibleShareLink<Label: View>: View {
+    let item: URL
+    private let label: () -> Label
+    @State private var isPresentingActivitySheet = false
+
+    init(item: URL, @ViewBuilder label: @escaping () -> Label) {
+        self.item = item
+        self.label = label
+    }
+
+    @ViewBuilder
+    var body: some View {
+        if #available(iOS 16.0, *) {
+            ShareLink(item: item, label: label)
+        } else {
+            Button {
+                isPresentingActivitySheet = true
+            } label: {
+                label()
+            }
+            .sheet(isPresented: $isPresentingActivitySheet) {
+                CompatibleActivitySheet(items: [item])
+            }
+        }
+    }
+}
+
+private struct CompatibleActivitySheet: UIViewControllerRepresentable {
+    let items: [Any]
+
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: items, applicationActivities: nil)
+    }
+
+    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }
