@@ -23,39 +23,17 @@ final class NavigationSourceLifecycleTests: XCTestCase {
         XCTAssertTrue(state.shouldTearDown(isPresentingLocalDestination: false))
     }
 
-    func testNavigationGestureControllerHostsEdgeSystemsOrExplicitDisable() {
-        XCTAssertTrue(
-            NavigationPopGestureControlHostingPolicy.requiresController(
-                systemMajorVersion: 16,
-                isEnabled: true
-            )
-        )
-        XCTAssertTrue(
-            NavigationPopGestureControlHostingPolicy.requiresController(
-                systemMajorVersion: 18,
-                isEnabled: true
-            )
-        )
+    func testNavigationGestureControllerOnlyHostsForExplicitDisable() {
         XCTAssertFalse(
-            NavigationPopGestureControlHostingPolicy.requiresController(
-                systemMajorVersion: 26,
-                isEnabled: true
-            )
+            NavigationPopGestureControlHostingPolicy.requiresController(isEnabled: true)
         )
         XCTAssertTrue(
-            NavigationPopGestureControlHostingPolicy.requiresController(
-                systemMajorVersion: 26,
-                isEnabled: false
-            )
+            NavigationPopGestureControlHostingPolicy.requiresController(isEnabled: false)
         )
     }
 
     @MainActor
-    func testGestureControlStateChangeKeepsPresentedContentIdentity() async throws {
-        guard ProcessInfo.processInfo.operatingSystemVersion.majorVersion >= 26 else {
-            throw XCTSkip("iOS 26 才会在启用状态省略手势控制器")
-        }
-
+    func testGestureControlStateChangeKeepsPresentedContentIdentity() async {
         let probe = NavigationGestureContentIdentityProbe()
         let host = UIHostingController(
             rootView: NavigationGestureContentIdentityHost(
@@ -90,7 +68,7 @@ final class NavigationSourceLifecycleTests: XCTestCase {
     @MainActor
     private func waitForRenderCycle() async {
         await Task.yield()
-        RunLoop.main.run(until: Date().addingTimeInterval(0.05))
+        try? await Task.sleep(nanoseconds: 50_000_000)
     }
 
     func testMeHistoryThreadUserPathReturnsOneLevelAtATime() {

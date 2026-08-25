@@ -9,6 +9,7 @@ struct ThreadDetailView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.readingPreferences) private var readingPreferences
     private let localThreadLibraryStore = LocalThreadLibraryStore.shared
+    @ObservedObject private var savedThreadStore = SavedThreadStore.shared
     @ObservedObject private var blocklistStore = BlocklistStore.shared
     let account: Account?
     let threadID: Int64
@@ -27,6 +28,7 @@ struct ThreadDetailView: View {
     @State private var posts: [Post] = []
     @State private var nextPage = 1
     @State private var hasMore = true
+    @State private var descendingTotalPage: Int?
     @State private var isLoading = false
     @State private var didLoad = false
     @State private var didRecordBrowsingHistory = false
@@ -43,6 +45,7 @@ struct ThreadDetailView: View {
     @State private var userResolutionGeneration = 0
     @State private var userResolutionError: String?
     @State private var isSearchActive = false
+    @State private var isStandaloneSearchPresented = false
     @State private var didCopyLink = false
     @State private var pendingInitialPostID: UInt64?
     @State private var pendingInitialDestination: ThreadDetailInitialDestination?
@@ -87,6 +90,10 @@ struct ThreadDetailView: View {
     @State private var ownThreadDeletionNotice: OwnThreadDeletionNotice?
     @State private var isPageVisible = false
     @State private var dismissAfterOwnThreadDeletionWhenVisible = false
+    @State private var isSavingLocally = false
+    @State private var localSaveTask: Task<Void, Never>?
+    @State private var localSaveMessage: String?
+    @State private var showsLocalSaveOptions = false
 
     init(
         account: Account?,
@@ -196,8 +203,16 @@ struct ThreadDetailView: View {
                     ForumThreadsView(account: account, forum: selectedForum)
                         .interactiveNavigationPopStateSync {
                             self.selectedForum = nil
-                        }
+                    }
                 }
+            }
+            .fullScreenCover(isPresented: $isStandaloneSearchPresented) {
+                StandaloneSearchNavigationView(
+                    account: account,
+                    scope: searchScope,
+                    initialKeyword: "",
+                    onClose: { isStandaloneSearchPresented = false }
+                )
             }
     }
 
@@ -210,6 +225,26 @@ struct ThreadDetailView: View {
             Button("好", role: .cancel) { accountFavoriteError = nil }
         } message: {
             Text(accountFavoriteError ?? "")
+        }
+            .confirmationDialog(
+                savedThreadStore.contains(threadID: threadID) ? "更新本地保存" : "保存到本地",
+                isPresented: $showsLocalSaveOptions,
+                titleVisibility: .visible
+            ) {
+                Button("完整媒体") { startLocalSave(mode: .complete) }
+                Button("正文和图片") { startLocalSave(mode: .images) }
+                Button("仅正文") { startLocalSave(mode: .textOnly) }
+                Button("取消", role: .cancel) {}
+            } message: {
+                Text("完整媒体会下载帖子中的图片、视频和语音；保存过程失败时不会覆盖已有版本。")
+            }
+            .alert("本地保存", isPresented: Binding(
+            get: { localSaveMessage != nil },
+            set: { if $0 == false { localSaveMessage = nil } }
+        )) {
+            Button("好", role: .cancel) {}
+        } message: {
+            Text(localSaveMessage ?? "")
         }
         .alert("提示", isPresented: likeActionErrorIsPresented) {
                 Button("好", role: .cancel) { likeActionError = nil }
@@ -348,6 +383,9 @@ struct ThreadDetailView: View {
     private func resetForAccountChange() {
         cancelAccountFavoritePresentation()
         cancelContentNavigation()
+        localSaveTask?.cancel()
+        localSaveTask = nil
+        isSavingLocally = false
         loadTask?.cancel()
         requestGeneration += 1
         threadPage = nil
@@ -355,6 +393,7 @@ struct ThreadDetailView: View {
         posts = []
         nextPage = 1
         hasMore = true
+        descendingTotalPage = nil
         isLoading = false
         didLoad = false
         isMainPostBlocked = false
@@ -366,6 +405,8 @@ struct ThreadDetailView: View {
         pendingSubmissionAccount = nil
         pendingSubmissionRouteID = nil
         pendingSubpostInitialID = nil
+        isSearchActive = false
+        isStandaloneSearchPresented = false
         selectedUser = nil
         cancelUserResolution()
         userResolutionError = nil
@@ -425,6 +466,7 @@ struct ThreadDetailView: View {
     private func handleDisappear() {
         guard navigationSourceLifecycle.shouldTearDown(
             isPresentingLocalDestination: isSearchActive
+                || isStandaloneSearchPresented
                 || selectedUser != nil
                 || selectedForum != nil
         ) else { return }
@@ -440,6 +482,9 @@ struct ThreadDetailView: View {
             )
         }
         cancelContentNavigation()
+        localSaveTask?.cancel()
+        localSaveTask = nil
+        isSavingLocally = false
         loadTask?.cancel()
         requestGeneration += 1
         isLoading = false
@@ -742,6 +787,16 @@ struct ThreadDetailView: View {
             Button(action: requestMenuRefresh) {
                 Label("刷新", systemImage: "arrow.clockwise")
             }
+            Button {
+                showsLocalSaveOptions = true
+            } label: {
+                Label(
+                    savedThreadStore.contains(threadID: threadID) ? "更新本地保存" : "保存到本地",
+                    systemImage: "arrow.down.doc"
+                )
+            }
+            .disabled(threadPage == nil || isSavingLocally)
+            .accessibilityIdentifier("thread-save-locally")
             Button(action: copyThreadLink) {
                 Label("复制链接", systemImage: "doc.on.doc")
             }
@@ -768,7 +823,7 @@ struct ThreadDetailView: View {
                     .foregroundStyle(.secondary)
             }
         } label: {
-            if isDeletingOwnThread {
+            if isDeletingOwnThread || isSavingLocally {
                 ProgressView()
                     .controlSize(.small)
             } else {
@@ -776,18 +831,25 @@ struct ThreadDetailView: View {
             }
         }
         .disabled(isDeletingOwnThread)
-        .accessibilityLabel(isDeletingOwnThread ? "正在删除帖子" : "更多")
+        .accessibilityLabel(
+            isDeletingOwnThread ? "正在删除帖子" : (isSavingLocally ? "正在保存帖子" : "更多")
+        )
     }
 
     private func openThreadSearch() {
         let scope = searchScope
-        if ThreadDetailSearchOpenRoutingPolicy.destination(
-            hasParentHandler: openSearchInParent != nil
-        ) == .parentPath, let openSearchInParent {
+        switch NestedSearchOpenRoutingPolicy.destination(
+            hasParentHandler: openSearchInParent != nil,
+            systemMajorVersion: ProcessInfo.processInfo.operatingSystemVersion.majorVersion
+        ) {
+        case .parentPath:
+            guard let openSearchInParent else { return }
             navigationSourceLifecycle.beginParentNavigation()
             openSearchInParent(scope)
-        } else {
+        case .localSearch:
             isSearchActive = true
+        case .standaloneSearch:
+            isStandaloneSearchPresented = true
         }
     }
 
@@ -802,6 +864,53 @@ struct ThreadDetailView: View {
 
     private func openThreadInBrowser() {
         openURL(threadWebURL)
+    }
+
+    private func startLocalSave(mode: SavedThreadMediaMode) {
+        guard isSavingLocally == false, threadPage != nil else { return }
+        localSaveTask?.cancel()
+        isSavingLocally = true
+        let capture = SavedThreadCaptureService(api: environment.api)
+        localSaveTask = Task { @MainActor in
+            defer {
+                isSavingLocally = false
+                localSaveTask = nil
+            }
+            do {
+                var snapshot = try await capture.capture(
+                    account: account,
+                    threadID: threadID,
+                    forumID: forumID
+                )
+                try Task.checkCancellation()
+                let preparedMedia = try await savedThreadStore.mediaStore.prepareCapture(
+                    snapshot: snapshot,
+                    mode: mode
+                )
+                defer { preparedMedia.rollback() }
+                try Task.checkCancellation()
+                snapshot.mediaMode = mode
+                snapshot.mediaAssets = preparedMedia.assets
+                snapshot.latestCheckedAt = nil
+                snapshot.latestReplyCount = nil
+                try await savedThreadStore.saveWithoutBlocking(
+                    snapshot,
+                    preparedMedia: preparedMedia
+                )
+                let mediaBytes = Dictionary(grouping: preparedMedia.assets, by: \.fileName)
+                    .values
+                    .compactMap(\.first)
+                    .reduce(0) { $0 + $1.byteCount }
+                let mediaDescription = mode == .textOnly
+                    ? "媒体仍需联网加载"
+                    : "已离线保存\(preparedMedia.assets.count)项媒体（\(ByteCountFormatter.string(fromByteCount: Int64(mediaBytes), countStyle: .file))）"
+                localSaveMessage = "已保存主楼、\(snapshot.replyCount)层回复和\(snapshot.subpostCount)条楼中楼；\(mediaDescription)。"
+            } catch is CancellationError {
+                return
+            } catch {
+                localSaveMessage = error.localizedDescription
+            }
+        }
     }
 
     @MainActor
@@ -1686,6 +1795,9 @@ struct ThreadDetailView: View {
         isLoading = false
         nextPage = 1
         hasMore = true
+        // Refreshes and filter changes can alter the server's page count.
+        // Descending order must rediscover the latest page for each page-1 load.
+        descendingTotalPage = nil
         errorMessage = nil
         resolveAutoRestoreIfNeeded()
         // Explicit page-1 rebuilds (refresh, sort toggles) drop the saved
@@ -1734,17 +1846,75 @@ struct ThreadDetailView: View {
             }
             let previousMainPost = mainPost
             let previousMainPostIsSummaryFallback = threadPage?.mainPostIsSummaryFallback ?? false
-            let task = Task { try await environment.api.threadPage(
-                account: requestedAccount,
-                threadID: threadID,
-                page: requestedPage,
-                forumID: forumID,
-                postID: requestedPostID,
-                seeLz: requestedSeeLz,
-                sortType: requestedSort
-            ) }
-            loadTask = task
-            var loaded = try await task.value
+            var loaded: ThreadPage
+            if requestedSort == .descending {
+                var discoveryPage: ThreadPage?
+                let totalPage: Int
+                if requestedPage > 1, let descendingTotalPage {
+                    totalPage = descendingTotalPage
+                } else {
+                    let discoveryTask = Task { try await environment.api.threadPage(
+                        account: requestedAccount,
+                        threadID: threadID,
+                        page: 1,
+                        forumID: forumID,
+                        postID: nil,
+                        seeLz: requestedSeeLz,
+                        sortType: .ascending
+                    ) }
+                    loadTask = discoveryTask
+                    let page = try await discoveryTask.value
+                    guard generation == requestGeneration,
+                          requestedSession == account?.sessionIdentity,
+                          requestedSeeLz == seeLz,
+                          requestedSort == sortType else { return }
+                    discoveryPage = page
+                    totalPage = max(page.totalPage, 1)
+                    descendingTotalPage = totalPage
+                }
+
+                let serverPage = ThreadDescendingPaginationPolicy.serverPage(
+                    logicalPage: requestedPage,
+                    totalPage: totalPage
+                )
+                if serverPage == 1, let discoveryPage {
+                    loaded = discoveryPage
+                } else {
+                    let pageTask = Task { try await environment.api.threadPage(
+                        account: requestedAccount,
+                        threadID: threadID,
+                        page: serverPage,
+                        forumID: forumID,
+                        postID: nil,
+                        seeLz: requestedSeeLz,
+                        sortType: .ascending
+                    ) }
+                    loadTask = pageTask
+                    loaded = try await pageTask.value
+                }
+                if loaded.mainPost == nil,
+                   let discoveryMainPost = discoveryPage.flatMap(
+                    ThreadPageMainPostPolicy.mainPost(in:)
+                   ) {
+                    loaded.mainPost = discoveryMainPost
+                }
+                loaded = ThreadDescendingPaginationPolicy.normalized(
+                    loaded,
+                    logicalPage: requestedPage
+                )
+            } else {
+                let task = Task { try await environment.api.threadPage(
+                    account: requestedAccount,
+                    threadID: threadID,
+                    page: requestedPage,
+                    forumID: forumID,
+                    postID: requestedPostID,
+                    seeLz: requestedSeeLz,
+                    sortType: requestedSort
+                ) }
+                loadTask = task
+                loaded = try await task.value
+            }
             guard generation == requestGeneration,
                   requestedSession == account?.sessionIdentity,
                   requestedSeeLz == seeLz,
@@ -2028,11 +2198,6 @@ struct ThreadDetailView: View {
     }
 }
 
-enum ThreadDetailSearchOpenDestination: Equatable {
-    case parentPath
-    case localSearch
-}
-
 private enum OwnThreadDeletionNotice: Identifiable {
     case failure(message: String)
     case resultPending
@@ -2044,14 +2209,6 @@ private enum OwnThreadDeletionNotice: Identifiable {
         case .resultPending:
             return "result-pending"
         }
-    }
-}
-
-enum ThreadDetailSearchOpenRoutingPolicy {
-    static func destination(
-        hasParentHandler: Bool
-    ) -> ThreadDetailSearchOpenDestination {
-        hasParentHandler ? .parentPath : .localSearch
     }
 }
 
@@ -2678,6 +2835,17 @@ private struct SubpostListSheet: View {
                 } else {
                     ScrollView {
                         LazyVStack(spacing: 0) {
+                            GeometryReader { proxy in
+                                Color.clear.preference(
+                                    key: SubpostSheetScrollTopPreferenceKey.self,
+                                    value: Optional(proxy.frame(
+                                        in: .named(SubpostSheetScrollCoordinateSpace.name)
+                                    ).minY)
+                                )
+                            }
+                            .frame(height: 0)
+                            .accessibilityHidden(true)
+
                             ReaderCard(
                                 showsDivider: false,
                                 contentBottomPadding: ThreadPostMetadataPlacement.standaloneReply.cardBottomPadding
@@ -2703,6 +2871,7 @@ private struct SubpostListSheet: View {
                                             textStyle: .reply,
                                             lineLimit: ThreadContentDisplayPolicy.detailLineLimit,
                                             readerFontSize: readingPreferences.fontSize,
+                                            readerFontFamily: readingPreferences.fontFamily,
                                             readerLineSpacing: readingPreferences.lineSpacing,
                                             inlineAccessibilityIdentifier: "thread-subpost-parent-text",
                                             onPlainTextTap: contentSubmissionSettingsStore.repliesEnabled
@@ -2783,6 +2952,8 @@ private struct SubpostListSheet: View {
                         }
                         .readableWidth()
                     }
+                    .coordinateSpace(name: SubpostSheetScrollCoordinateSpace.name)
+                    .subpostSheetLegacyScrollTelemetry()
                     .background(TiebaPureTheme.ColorToken.readerGroupedBackground)
                 }
                 }
@@ -3232,6 +3403,7 @@ private struct SubpostRowView: View {
                         textStyle: .reply,
                         lineLimit: ThreadContentDisplayPolicy.detailLineLimit,
                         readerFontSize: readingPreferences.fontSize,
+                        readerFontFamily: readingPreferences.fontFamily,
                         readerLineSpacing: readingPreferences.lineSpacing,
                         inlineAccessibilityIdentifier: "thread-subpost-text",
                         onOpenUser: onOpenUser,

@@ -47,10 +47,15 @@ enum TiebaImageSourcePolicy {
     static func urls(primary: URL?, fallback: URL? = nil) -> [URL] {
         var result: [URL] = []
         for candidate in [primary, fallback].compactMap({ $0 }) {
-            guard let safeURL = TiebaURL.image(candidate.absoluteString),
-                  result.contains(safeURL) == false else {
+            let safeURL: URL
+            if SavedThreadMediaAuthorization.shared.allows(candidate) {
+                safeURL = candidate
+            } else if let validated = TiebaURL.image(candidate.absoluteString) {
+                safeURL = validated
+            } else {
                 continue
             }
+            guard result.contains(safeURL) == false else { continue }
             result.append(safeURL)
         }
         return result
@@ -116,6 +121,27 @@ enum TiebaImageDecodePolicy {
         let requiredPixels = Int(ceil(longestPointEdge * previewScale))
         return previewDecodeBuckets.first(where: { $0 >= requiredPixels })
             ?? maximumPreviewDecodedPixelSize
+    }
+}
+
+enum TiebaAnimatedImageDecodePolicy {
+    static let maximumFrameCount = 120
+    static let maximumDecodedPixels = 24_000_000
+    static let defaultFrameDuration = 0.1
+    static let minimumFrameDuration = 0.02
+    static let maximumFrameDuration = 10.0
+
+    static func frameDuration(properties: [CFString: Any]) -> TimeInterval {
+        guard let gifProperties = properties[kCGImagePropertyGIFDictionary]
+                as? [CFString: Any] else {
+            return defaultFrameDuration
+        }
+        let rawDuration = (gifProperties[kCGImagePropertyGIFUnclampedDelayTime]
+            as? NSNumber)?.doubleValue
+            ?? (gifProperties[kCGImagePropertyGIFDelayTime] as? NSNumber)?.doubleValue
+            ?? defaultFrameDuration
+        guard rawDuration.isFinite else { return defaultFrameDuration }
+        return min(max(rawDuration, minimumFrameDuration), maximumFrameDuration)
     }
 }
 
@@ -250,8 +276,13 @@ actor TiebaImagePipeline {
     ) async throws -> UIImage {
         // Download the validated URL, not the caller's: validation may have
         // upgraded a legacy http source to https.
-        guard let safeURL = TiebaURL.image(url.absoluteString),
-              redirectScope.allows(safeURL) || Self.isSyntheticFixtureURL(safeURL) else {
+        let safeURL: URL
+        if SavedThreadMediaAuthorization.shared.allows(url) {
+            safeURL = url
+        } else if let validated = TiebaURL.image(url.absoluteString),
+                  redirectScope.allows(validated) || Self.isSyntheticFixtureURL(validated) {
+            safeURL = validated
+        } else {
             throw TiebaImagePipelineError.invalidURL
         }
         guard TiebaImageSourcePolicy.isSyntheticFailureURL(url) == false else {
@@ -289,7 +320,7 @@ actor TiebaImagePipeline {
                 ))
             }
             let image = Self.syntheticFixtureImage(for: url)
-            let cost = Int(image.size.width * image.size.height * image.scale * image.scale * 4)
+            let cost = Self.decodedImageCost(image)
             memoryCache.setObject(image, forKey: request.cacheKey, cost: cost)
             return image
         }
@@ -301,7 +332,7 @@ actor TiebaImagePipeline {
                 onProgress: onProgress
             )
             try Task.checkCancellation()
-            let cost = Int(image.size.width * image.size.height * image.scale * image.scale * 4)
+            let cost = Self.decodedImageCost(image)
             memoryCache.setObject(image, forKey: request.cacheKey, cost: cost)
             return image
         }
@@ -365,7 +396,7 @@ actor TiebaImagePipeline {
             } catch {
                 result = .failure(error)
             }
-            await self.completeSharedRequest(
+            self.completeSharedRequest(
                 request,
                 operationID: operationID,
                 result: result
@@ -405,7 +436,7 @@ actor TiebaImagePipeline {
 
         switch result {
         case let .success(image):
-            let cost = Int(image.size.width * image.size.height * image.scale * image.scale * 4)
+            let cost = Self.decodedImageCost(image)
             memoryCache.setObject(image, forKey: request.cacheKey, cost: cost)
             requestState.waiters.values.forEach { $0.resume(returning: image) }
         case let .failure(error):
@@ -424,6 +455,25 @@ actor TiebaImagePipeline {
         session: URLSession,
         onProgress: (@Sendable (BoundedURLSessionProgress) async -> Void)?
     ) async throws -> UIImage {
+        if request.url.isFileURL {
+            guard SavedThreadMediaAuthorization.shared.allows(request.url) else {
+                throw TiebaImagePipelineError.invalidURL
+            }
+            let data = try Data(contentsOf: request.url, options: [.mappedIfSafe, .uncached])
+            guard data.isEmpty == false,
+                  data.count <= maximumImageBytes,
+                  let image = decodedImage(
+                    from: data,
+                    targetPixelSize: request.targetPixelSize
+                  ) else {
+                throw TiebaImagePipelineError.invalidImageData
+            }
+            await onProgress?(BoundedURLSessionProgress(
+                receivedBytes: data.count,
+                expectedBytes: data.count
+            ))
+            return image
+        }
         var attempt = 0
         while true {
             do {
@@ -471,7 +521,9 @@ actor TiebaImagePipeline {
 
 #if DEBUG
     private static func syntheticFixtureImage(for url: URL) -> UIImage {
-        let size = CGSize(width: 120, height: 480)
+        let size = url.lastPathComponent.contains("lowres-thumbnail")
+            ? CGSize(width: 80, height: 320)
+            : CGSize(width: 320, height: 1_280)
         // Thumbnail/original fixture URLs represent the same underlying
         // picture. Seeding them independently made the hero animation morph
         // between unrelated colors and could either mimic or conceal a real
@@ -513,13 +565,19 @@ actor TiebaImagePipeline {
     }
 #endif
 
-    private static func decodedImage(from data: Data, targetPixelSize: Int) -> UIImage? {
+    static func decodedImage(from data: Data, targetPixelSize: Int) -> UIImage? {
         guard let source = CGImageSourceCreateWithData(data as CFData, nil),
               let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
               let width = (properties[kCGImagePropertyPixelWidth] as? NSNumber)?.intValue,
               let height = (properties[kCGImagePropertyPixelHeight] as? NSNumber)?.intValue,
               TiebaImageDecodePolicy.allows(width: width, height: height) else {
             return nil
+        }
+        if let animatedImage = decodedAnimatedImage(
+            source: source,
+            targetPixelSize: targetPixelSize
+        ) {
+            return animatedImage
         }
         let options: [CFString: Any] = [
             kCGImageSourceCreateThumbnailFromImageAlways: true,
@@ -529,6 +587,96 @@ actor TiebaImagePipeline {
         ]
         guard let image = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary) else { return nil }
         return UIImage(cgImage: image)
+    }
+
+    static func decodedImageCost(_ image: UIImage) -> Int {
+        let frames = image.images ?? [image]
+        return frames.reduce(into: 0) { total, frame in
+            let width = frame.cgImage?.width ?? Int(frame.size.width * frame.scale)
+            let height = frame.cgImage?.height ?? Int(frame.size.height * frame.scale)
+            let (pixels, pixelOverflow) = width.multipliedReportingOverflow(by: height)
+            let (bytes, byteOverflow) = pixels.multipliedReportingOverflow(by: 4)
+            guard pixelOverflow == false, byteOverflow == false,
+                  total <= Int.max - bytes else {
+                total = Int.max
+                return
+            }
+            total += bytes
+        }
+    }
+
+    private static func decodedAnimatedImage(
+        source: CGImageSource,
+        targetPixelSize: Int
+    ) -> UIImage? {
+        let frameCount = CGImageSourceGetCount(source)
+        guard frameCount > 1,
+              frameCount <= TiebaAnimatedImageDecodePolicy.maximumFrameCount else {
+            return nil
+        }
+        let options: [CFString: Any] = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceThumbnailMaxPixelSize: TiebaImageDecodePolicy.decodeTargetPixelSize(
+                targetPixelSize
+            ),
+            kCGImageSourceShouldCacheImmediately: true
+        ]
+        var frames: [UIImage] = []
+        frames.reserveCapacity(frameCount)
+        var duration: TimeInterval = 0
+        var decodedPixels = 0
+
+        for index in 0..<frameCount {
+            guard let properties = CGImageSourceCopyPropertiesAtIndex(
+                source,
+                index,
+                nil
+            ) as? [CFString: Any],
+                  let width = (properties[kCGImagePropertyPixelWidth] as? NSNumber)?.intValue,
+                  let height = (properties[kCGImagePropertyPixelHeight] as? NSNumber)?.intValue,
+                  TiebaImageDecodePolicy.allows(width: width, height: height),
+                  let cgImage = CGImageSourceCreateThumbnailAtIndex(
+                    source,
+                    index,
+                    options as CFDictionary
+                  ) else {
+                return nil
+            }
+            let (framePixels, overflow) = cgImage.width.multipliedReportingOverflow(
+                by: cgImage.height
+            )
+            guard overflow == false,
+                  framePixels <= TiebaAnimatedImageDecodePolicy.maximumDecodedPixels - decodedPixels else {
+                return nil
+            }
+            decodedPixels += framePixels
+            duration += TiebaAnimatedImageDecodePolicy.frameDuration(properties: properties)
+            frames.append(UIImage(cgImage: cgImage))
+        }
+        return UIImage.animatedImage(with: frames, duration: duration)
+    }
+}
+
+private struct TiebaAnimatedUIImageView: UIViewRepresentable {
+    let image: UIImage
+    let contentMode: ContentMode
+
+    func makeUIView(context: Context) -> UIImageView {
+        let imageView = UIImageView()
+        imageView.clipsToBounds = true
+        return imageView
+    }
+
+    func updateUIView(_ imageView: UIImageView, context: Context) {
+        imageView.contentMode = contentMode == .fill ? .scaleAspectFill : .scaleAspectFit
+        imageView.image = image
+        imageView.startAnimating()
+    }
+
+    static func dismantleUIView(_ imageView: UIImageView, coordinator: Void) {
+        imageView.stopAnimating()
+        imageView.image = nil
     }
 }
 
@@ -728,9 +876,18 @@ struct TiebaRemoteImage: View {
             case let .success(image):
                 if model.represents(urls: urls, targetPixelSize: targetPixelSize) {
                     if showsResolvedImage {
-                        Image(uiImage: image)
-                            .resizable()
-                            .aspectRatio(contentMode: contentMode)
+                        Group {
+                            if image.images?.isEmpty == false {
+                                TiebaAnimatedUIImageView(
+                                    image: image,
+                                    contentMode: contentMode
+                                )
+                            } else {
+                                Image(uiImage: image)
+                                    .resizable()
+                                    .aspectRatio(contentMode: contentMode)
+                            }
+                        }
                             .background {
                                 if onImageLayoutResolved != nil || activeDebugImageObserver != nil {
                                     TiebaResolvedImageFrameReader(

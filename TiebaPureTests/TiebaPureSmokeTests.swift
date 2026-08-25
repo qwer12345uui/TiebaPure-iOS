@@ -1,5 +1,6 @@
 import Security
 import SwiftUI
+import ImageIO
 import XCTest
 @testable import TiebaPure
 
@@ -833,14 +834,23 @@ final class TiebaPureSmokeTests: XCTestCase {
 
     func testThreadDetailSearchStaysOnParentTypedPathBeforeMetadataLoads() {
         XCTAssertEqual(
-            ThreadDetailSearchOpenRoutingPolicy.destination(
-                hasParentHandler: true
+            NestedSearchOpenRoutingPolicy.destination(
+                hasParentHandler: true,
+                systemMajorVersion: 16
             ),
             .parentPath
         )
         XCTAssertEqual(
-            ThreadDetailSearchOpenRoutingPolicy.destination(
-                hasParentHandler: false
+            NestedSearchOpenRoutingPolicy.destination(
+                hasParentHandler: false,
+                systemMajorVersion: 16
+            ),
+            .standaloneSearch
+        )
+        XCTAssertEqual(
+            NestedSearchOpenRoutingPolicy.destination(
+                hasParentHandler: false,
+                systemMajorVersion: 17
             ),
             .localSearch
         )
@@ -1334,6 +1344,52 @@ final class TiebaPureSmokeTests: XCTestCase {
         XCTAssertFalse(TiebaImageRequestPolicy.shouldRetry(statusCode: 503, attempt: 2))
     }
 
+    func testTiebaImagePipelineDecodesAnimatedGIFAndAccountsForEveryFrame() throws {
+        let data = NSMutableData()
+        let destination = try XCTUnwrap(CGImageDestinationCreateWithData(
+            data,
+            "com.compuserve.gif" as CFString,
+            2,
+            nil
+        ))
+        for color in [UIColor.systemBlue, UIColor.systemOrange] {
+            let image = UIGraphicsImageRenderer(size: CGSize(width: 20, height: 12)).image {
+                color.setFill()
+                $0.fill(CGRect(x: 0, y: 0, width: 20, height: 12))
+            }
+            CGImageDestinationAddImage(
+                destination,
+                try XCTUnwrap(image.cgImage),
+                [
+                    kCGImagePropertyGIFDictionary: [
+                        kCGImagePropertyGIFDelayTime: 0.08
+                    ]
+                ] as CFDictionary
+            )
+        }
+        XCTAssertTrue(CGImageDestinationFinalize(destination))
+
+        let image = try XCTUnwrap(TiebaImagePipeline.decodedImage(
+            from: data as Data,
+            targetPixelSize: 128
+        ))
+        XCTAssertEqual(image.images?.count, 2)
+        XCTAssertEqual(image.duration, 0.16, accuracy: 0.01)
+        let expectedCost = try XCTUnwrap(image.images).reduce(into: 0) { total, frame in
+            let cgImage = try XCTUnwrap(frame.cgImage)
+            total += cgImage.width * cgImage.height * 4
+        }
+        XCTAssertEqual(
+            TiebaImagePipeline.decodedImageCost(image),
+            expectedCost
+        )
+        XCTAssertGreaterThan(
+            TiebaImagePipeline.decodedImageCost(image),
+            expectedCost / 2,
+            "动画缓存成本必须覆盖全部帧，而不是只计算首帧"
+        )
+    }
+
     func testTiebaImageSourcePolicyKeepsThumbnailThenOriginalWithoutDuplicates() throws {
         let thumbnail = try XCTUnwrap(URL(string: "https://tiebapic.baidu.com/thumb.jpg"))
         let original = try XCTUnwrap(URL(string: "https://tiebapic.baidu.com/original.jpg"))
@@ -1453,6 +1509,55 @@ final class TiebaPureSmokeTests: XCTestCase {
             FullScreenImageDecodePolicy.maximumPreviewDecodedPixelSize
         )
         XCTAssertEqual(TiebaImageDecodePolicy.maximumDecodedPixelSize, 4_096)
+    }
+
+    func testFullScreenImageAutomaticallyUpgradesOnlyVisibleInsufficientPreview() throws {
+        let preview = try XCTUnwrap(URL(
+            string: "https://tiebapic.baidu.com/forum/pic/item/preview.jpg"
+        ))
+        let original = try XCTUnwrap(URL(
+            string: "https://tiebapic.baidu.com/forum/pic/item/original.jpg"
+        ))
+        XCTAssertTrue(FullScreenImageResolutionUpgradePolicy.shouldUpgrade(
+            previewPixelSize: CGSize(width: 320, height: 960),
+            targetPixelSize: 3_072,
+            pageIndex: 0,
+            currentIndex: 0,
+            didFinishPresentation: true,
+            previewURL: preview,
+            originalURL: original,
+            originalState: .available
+        ))
+        XCTAssertFalse(FullScreenImageResolutionUpgradePolicy.shouldUpgrade(
+            previewPixelSize: CGSize(width: 768, height: 3_072),
+            targetPixelSize: 3_072,
+            pageIndex: 0,
+            currentIndex: 0,
+            didFinishPresentation: true,
+            previewURL: preview,
+            originalURL: original,
+            originalState: .available
+        ))
+        XCTAssertFalse(FullScreenImageResolutionUpgradePolicy.shouldUpgrade(
+            previewPixelSize: CGSize(width: 320, height: 960),
+            targetPixelSize: 3_072,
+            pageIndex: 1,
+            currentIndex: 0,
+            didFinishPresentation: true,
+            previewURL: preview,
+            originalURL: original,
+            originalState: .available
+        ))
+        XCTAssertFalse(FullScreenImageResolutionUpgradePolicy.shouldUpgrade(
+            previewPixelSize: CGSize(width: 320, height: 960),
+            targetPixelSize: 3_072,
+            pageIndex: 0,
+            currentIndex: 0,
+            didFinishPresentation: true,
+            previewURL: original,
+            originalURL: original,
+            originalState: .available
+        ))
     }
 
     func testOriginalImageOnlyLoadsFromAnExplicitAvailableOrRetryState() {
@@ -3336,82 +3441,69 @@ final class TiebaPureSmokeTests: XCTestCase {
         ))
     }
 
-    func testNavigationBackGesturePolicyUsesNativeContentPopOnlyOnIOS26() {
+    func testSubpostPullDownDismissRequiresContentToStartAtTop() {
+        XCTAssertTrue(SubpostPullDownDismissPolicy.shouldBegin(
+            translation: CGSize(width: 8, height: 40),
+            isContentAtTop: true
+        ))
+        XCTAssertFalse(SubpostPullDownDismissPolicy.shouldBegin(
+            translation: CGSize(width: 8, height: 40),
+            isContentAtTop: false
+        ))
+        XCTAssertFalse(SubpostPullDownDismissPolicy.shouldBegin(
+            translation: CGSize(width: 40, height: 20),
+            isContentAtTop: true
+        ))
         XCTAssertEqual(
-            NavigationBackGesturePolicy.mode(systemMajorVersion: 18),
-            .edge
+            SubpostPullDownDismissPolicy.verticalOffset(
+                translationY: 160,
+                containerHeight: 800
+            ),
+            160
         )
-        XCTAssertEqual(
-            NavigationBackGesturePolicy.mode(systemMajorVersion: 25),
-            .edge
-        )
-        XCTAssertEqual(
-            NavigationBackGesturePolicy.mode(systemMajorVersion: 26),
-            .content
-        )
-        XCTAssertEqual(
-            NavigationBackGesturePolicy.mode(systemMajorVersion: 27),
-            .content
-        )
+        XCTAssertTrue(SubpostPullDownDismissPolicy.shouldFinish(
+            translationY: 160,
+            predictedTranslationY: 160,
+            containerHeight: 800
+        ))
+        XCTAssertTrue(SubpostPullDownDismissPolicy.shouldFinish(
+            translationY: 48,
+            predictedTranslationY: 260,
+            containerHeight: 800
+        ))
+        XCTAssertFalse(SubpostPullDownDismissPolicy.shouldFinish(
+            translationY: 48,
+            predictedTranslationY: 100,
+            containerHeight: 800
+        ))
     }
 
-    func testNativeEdgePopActivationOnlyEnablesEligibleLegacyNavigationStacks() {
-        XCTAssertTrue(NativeEdgePopGestureActivationPolicy.shouldEnable(
-            requestedEnabled: true,
-            mode: .edge,
-            isVisible: true,
-            isAttachedToWindow: true,
-            stackDepth: 2,
-            hasActiveTransition: false
-        ))
-        XCTAssertFalse(NativeEdgePopGestureActivationPolicy.shouldEnable(
-            requestedEnabled: false,
-            mode: .edge,
-            isVisible: true,
-            isAttachedToWindow: true,
-            stackDepth: 2,
-            hasActiveTransition: false
-        ))
-        XCTAssertFalse(NativeEdgePopGestureActivationPolicy.shouldEnable(
-            requestedEnabled: true,
-            mode: .content,
-            isVisible: true,
-            isAttachedToWindow: true,
-            stackDepth: 2,
-            hasActiveTransition: false
-        ))
-        XCTAssertFalse(NativeEdgePopGestureActivationPolicy.shouldEnable(
-            requestedEnabled: true,
-            mode: .edge,
-            isVisible: false,
-            isAttachedToWindow: true,
-            stackDepth: 2,
-            hasActiveTransition: false
-        ))
-        XCTAssertFalse(NativeEdgePopGestureActivationPolicy.shouldEnable(
-            requestedEnabled: true,
-            mode: .edge,
-            isVisible: true,
-            isAttachedToWindow: false,
-            stackDepth: 2,
-            hasActiveTransition: false
-        ))
-        XCTAssertFalse(NativeEdgePopGestureActivationPolicy.shouldEnable(
-            requestedEnabled: true,
-            mode: .edge,
-            isVisible: true,
-            isAttachedToWindow: true,
-            stackDepth: 1,
-            hasActiveTransition: false
-        ))
-        XCTAssertFalse(NativeEdgePopGestureActivationPolicy.shouldEnable(
-            requestedEnabled: true,
-            mode: .edge,
-            isVisible: true,
-            isAttachedToWindow: true,
-            stackDepth: 2,
-            hasActiveTransition: true
-        ))
+    func testDescendingReplyPaginationStartsAtLastServerPage() {
+        XCTAssertEqual(
+            ThreadDescendingPaginationPolicy.serverPage(logicalPage: 1, totalPage: 8),
+            8
+        )
+        XCTAssertEqual(
+            ThreadDescendingPaginationPolicy.serverPage(logicalPage: 2, totalPage: 8),
+            7
+        )
+        XCTAssertEqual(
+            ThreadDescendingPaginationPolicy.serverPage(logicalPage: 8, totalPage: 8),
+            1
+        )
+        XCTAssertEqual(
+            ThreadDescendingPaginationPolicy.serverPage(logicalPage: 99, totalPage: 8),
+            1
+        )
+        XCTAssertEqual(
+            ThreadDescendingPaginationPolicy.serverPage(logicalPage: 1, totalPage: 3),
+            3,
+            "刷新后应使用重新发现的总页数定位最新回复"
+        )
+        XCTAssertEqual(
+            ThreadDescendingPaginationPolicy.displayOrder([37, 38, 39]),
+            [39, 38, 37]
+        )
     }
 
     func testInlineContentTextUsesOneLiveLayoutStackWithoutClippingAfterReuse() {

@@ -27,6 +27,7 @@
 		1B38ECEBD8AB77434B402F8A /* ForumThreadsRequestKey.swift in Sources */ = {isa = PBXBuildFile; fileRef = 67A1242A6C7E6C6F3740D3E6 /* ForumThreadsRequestKey.swift */; };
 		1C53CA119B8A4874452D2F6B /* ContentDraftFilePersistenceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EFE6592A34B15BF182198BFA /* ContentDraftFilePersistenceTests.swift */; };
 		1D73C1F9246A5740B5D63601 /* LogoutCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D6B235101269A6DE9BEB53A /* LogoutCoordinator.swift */; };
+		1E84B72ACDF13678A6BE6CB8 /* SavedThread.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0DB03A9A81B77E7ECBD00B30 /* SavedThread.swift */; };
 		215E174D28331CD22F134EE6 /* TiebaAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06BFF7EDD31716056CE12B69 /* TiebaAPI.swift */; };
 		221CEAF5C48D697203C0FC6B /* SwiftData.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 158DD0B24F8C6500639DB687 /* SwiftData.framework */; settings = {ATTRIBUTES = (Weak, ); }; };
 		22C326EADD75278D51629E56 /* ReaderCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 431A697F330BBEC18E2252D0 /* ReaderCard.swift */; };
@@ -68,6 +69,7 @@
 		4AA30396C89848D6E874828A /* TiebaSubmissionChallenge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FFB1A84AD3090A9581D1DA7 /* TiebaSubmissionChallenge.swift */; };
 		4C637302510F02D057F7F18D /* AuthSessionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D258A9BF97B365AE98B663F /* AuthSessionTests.swift */; };
 		4CC783BD1274CE79745DE038 /* LoginWebView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F159C859125D33A23786365A /* LoginWebView.swift */; };
+		4D32AA19CAE1A40F2001E6D8 /* SessionExpirationMonitorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00A0FAAA54B2D05276E46330 /* SessionExpirationMonitorTests.swift */; };
 		4D7D3D4E33E7C375230D2F29 /* Post.pb.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA50FDF3AC3742333D5202EC /* Post.pb.swift */; };
 		4E2A3DFCCFD09D57BC62A04F /* FileOrderedCollectionPersistenceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A20C49C14881A792297DFF2 /* FileOrderedCollectionPersistenceTests.swift */; };
 		4ED79FF1DB72B276E756EBF2 /* FixtureTiebaAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36421D36A7372F3886F8A1FA /* FixtureTiebaAPI.swift */; };
@@ -119,6 +121,7 @@
 		90A1EF7B8679DC1058702486 /* ForumListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 944D4064677A9BAB7CD156BC /* ForumListView.swift */; };
 		94463A90FFDE1A58359C61B0 /* ContentDraftMigrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1CB122673DB1880647B37AE8 /* ContentDraftMigrationTests.swift */; };
 		96E558670B2758520F748005 /* ContentComposerPolicyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 08C0F8A37BD6F0E4EA09BFCD /* ContentComposerPolicyTests.swift */; };
+		985218E469AF18B5378E8549 /* SavedThreadsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0B960AF4A983D18E1496538 /* SavedThreadsView.swift */; };
 		9B869CC8E0EE590D0B003B40 /* FollowedUsersView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 68FBDB720D1FCC2A3138B0CC /* FollowedUsersView.swift */; };
 		9C4E81261CE11986A7FC94CA /* PersistenceBoundaryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 481EB2A4D9C019B333364901 /* PersistenceBoundaryTests.swift */; };
 		9E782527D741226479B50A92 /* TiebaContentSubmissionAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07C158046155BBD6748519CF /* TiebaContentSubmissionAPI.swift */; };
@@ -152,6 +155,7 @@
 		BF200F41FA7A88C525623215 /* AboutView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E425761E05D459199869361A /* AboutView.swift */; };
 		BF3E65570A0501F384F8C0BA /* ReaderStateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 475452DA26606C9EEF2982D2 /* ReaderStateView.swift */; };
 		C02D20CEC3FEDED464983D96 /* SafariActionPayload.swift in Sources */ = {isa = PBXBuildFile; fileRef = 872607E2663432D3116C5BB6 /* SafariActionPayload.swift */; };
+		C0504704A144B25F4915E062 /* SavedThreadMedia.swift in Sources */ = {isa = PBXBuildFile; fileRef = CBBF9E6133FA9F395134196F /* SavedThreadMedia.swift */; };
 		C093E45405F12EC29B1F62B5 /* AuthSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB22109F3B9CFD8850C4BEE0 /* AuthSession.swift */; };
 		C0E5134C9E23DDD474D84DDA /* TiebaPureSmokeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53A22DDA746D43724E44B7D2 /* TiebaPureSmokeTests.swift */; };
 		C144376E190882BF6A323835 /* ForumHubView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D3DFA01DD01FD4EA295E006 /* ForumHubView.swift */; };
@@ -195,6 +199,7 @@
 		E4BC7D1B10FF88D762725986 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10E2287E1195B4261B0B88E8 /* SettingsView.swift */; };
 		E6FCA5689969E1EE7020CF44 /* ReadingSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 432F97822473B7D42DB148EC /* ReadingSettingsView.swift */; };
 		EAADABB00751D25DB084C26D /* TiebaHTTPClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = AFF65BFE5160CFC6F1F12CEF /* TiebaHTTPClient.swift */; };
+		EBD1AC0F607CBF4865A92A2A /* SessionExpirationMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A578DF23FC437057492F4BE /* SessionExpirationMonitor.swift */; };
 		ECDE960EDA7E9E0E186B2D3C /* ExternalRoute.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63DFA01B546626F59DF261F1 /* ExternalRoute.swift */; };
 		ED0AA7A2777C1AD628FF19AA /* TiebaContentFilter.swift in Sources */ = {isa = PBXBuildFile; fileRef = D31CA90EA6BEF04EEA9AD1C3 /* TiebaContentFilter.swift */; };
 		ED3E9E7D0D3A425FBB4B9C05 /* SwiftProtobuf in Frameworks */ = {isa = PBXBuildFile; productRef = 2937FD9F177D6107E4AF3997 /* SwiftProtobuf */; };
@@ -203,6 +208,7 @@
 		F0FF2290BC0E84D98B000FF3 /* Anti.pb.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3BEB3F78F38EA8D24DAA64A4 /* Anti.pb.swift */; };
 		F24BAE224091125E43EAC298 /* ForumSignSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E4CFA3390403419B8C3E890 /* ForumSignSettings.swift */; };
 		F2FE7D83BA305985F7A5600D /* User.pb.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7D98C38DD4DF0A6BBAEE14B /* User.pb.swift */; };
+		F5B1D066296990A96D69CC0C /* SavedThreadTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 460C7E1E4622409127D0F888 /* SavedThreadTests.swift */; };
 		F60F13E9F3CF7AA790EE1C4A /* MessagesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C6EE1B24CFBA1308B81FD41 /* MessagesView.swift */; };
 		F81A17ADFC8827935D28CB43 /* Forum.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E92E90BB801373B85685DDD /* Forum.swift */; };
 		F91AF0FEAF078DC66EA3C184 /* AppPosInfo.pb.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3312A539F9532E1B21FD622 /* AppPosInfo.pb.swift */; };
@@ -255,6 +261,7 @@
 /* Begin PBXFileReference section */
 		00339148CB9511CB5F6A624F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		0060EA54C03E209E46FB2C40 /* ForumThreadsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForumThreadsView.swift; sourceTree = "<group>"; };
+		00A0FAAA54B2D05276E46330 /* SessionExpirationMonitorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionExpirationMonitorTests.swift; sourceTree = "<group>"; };
 		034D76B7DA1D80733B718828 /* MediaPreviewHeroAnimator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaPreviewHeroAnimator.swift; sourceTree = "<group>"; };
 		06656E39A13E9DD402A3E9D7 /* CompatibleUnavailableView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompatibleUnavailableView.swift; sourceTree = "<group>"; };
 		06BFF7EDD31716056CE12B69 /* TiebaAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TiebaAPI.swift; sourceTree = "<group>"; };
@@ -264,6 +271,7 @@
 		094A7B97C027D43346675B29 /* TiebaPureProfile_UserProfile.pb.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TiebaPureProfile_UserProfile.pb.swift; sourceTree = "<group>"; };
 		094DB1CB5AD5C781A07443AB /* VideoDownloadService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoDownloadService.swift; sourceTree = "<group>"; };
 		0CE52F261111609A3D8E1D30 /* ContentDraftTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentDraftTests.swift; sourceTree = "<group>"; };
+		0DB03A9A81B77E7ECBD00B30 /* SavedThread.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SavedThread.swift; sourceTree = "<group>"; };
 		0E50CC9DC6A0FEE9D095B963 /* PbPage_PbPageResponse.pb.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PbPage_PbPageResponse.pb.swift; sourceTree = "<group>"; };
 		0F167B1D47EFED83CEE70F2D /* SimpleForum.pb.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SimpleForum.pb.swift; sourceTree = "<group>"; };
 		10B4550B620AEBC6B7EA4F46 /* ContentBlockView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentBlockView.swift; sourceTree = "<group>"; };
@@ -312,6 +320,7 @@
 		398BABD44302879D665A9AC3 /* VoicePlaybackControl.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoicePlaybackControl.swift; sourceTree = "<group>"; };
 		3A20C49C14881A792297DFF2 /* FileOrderedCollectionPersistenceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileOrderedCollectionPersistenceTests.swift; sourceTree = "<group>"; };
 		3A38AD5D710823BA66CAE23C /* UserProfileTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserProfileTests.swift; sourceTree = "<group>"; };
+		3A578DF23FC437057492F4BE /* SessionExpirationMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionExpirationMonitor.swift; sourceTree = "<group>"; };
 		3ABAA8240FEE5D60D5C61349 /* VoicePlaybackControlTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoicePlaybackControlTests.swift; sourceTree = "<group>"; };
 		3BEB3F78F38EA8D24DAA64A4 /* Anti.pb.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Anti.pb.swift; sourceTree = "<group>"; };
 		3C4F59298557DEA63197CAA5 /* OpenInTiebaPure.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = OpenInTiebaPure.js; sourceTree = "<group>"; };
@@ -322,6 +331,7 @@
 		431A697F330BBEC18E2252D0 /* ReaderCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReaderCard.swift; sourceTree = "<group>"; };
 		432F97822473B7D42DB148EC /* ReadingSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReadingSettingsView.swift; sourceTree = "<group>"; };
 		44C549F603F6A8B5988B0B31 /* BrowsingHistory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowsingHistory.swift; sourceTree = "<group>"; };
+		460C7E1E4622409127D0F888 /* SavedThreadTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SavedThreadTests.swift; sourceTree = "<group>"; };
 		475452DA26606C9EEF2982D2 /* ReaderStateView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReaderStateView.swift; sourceTree = "<group>"; };
 		47A8570B3E26BDD92BF4524C /* TiebaMessageAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TiebaMessageAPI.swift; sourceTree = "<group>"; };
 		481EB2A4D9C019B333364901 /* PersistenceBoundaryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersistenceBoundaryTests.swift; sourceTree = "<group>"; };
@@ -403,6 +413,7 @@
 		AEC5695CD74141BB65787AB6 /* TiebaAPIService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TiebaAPIService.swift; sourceTree = "<group>"; };
 		AF02A66EF1B9089518F9ED99 /* ImageViewer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageViewer.swift; sourceTree = "<group>"; };
 		AFF65BFE5160CFC6F1F12CEF /* TiebaHTTPClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TiebaHTTPClient.swift; sourceTree = "<group>"; };
+		B0B960AF4A983D18E1496538 /* SavedThreadsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SavedThreadsView.swift; sourceTree = "<group>"; };
 		B3312A539F9532E1B21FD622 /* AppPosInfo.pb.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppPosInfo.pb.swift; sourceTree = "<group>"; };
 		B55649E6AEA1AD2EF4813452 /* TiebaUserProfileAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TiebaUserProfileAPI.swift; sourceTree = "<group>"; };
 		B571B662CFFFF46F507E2FC5 /* TiebaPureOpenIn.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = TiebaPureOpenIn.appex; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -421,6 +432,7 @@
 		C4B3F485FB45C4828FD7C5C6 /* AppPersistence.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppPersistence.swift; sourceTree = "<group>"; };
 		C60B7C87AF367770BAF70762 /* SearchAPITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchAPITests.swift; sourceTree = "<group>"; };
 		C80CE02414B9F8BD668C519D /* FrsPage_FrsPage.pb.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FrsPage_FrsPage.pb.swift; sourceTree = "<group>"; };
+		CBBF9E6133FA9F395134196F /* SavedThreadMedia.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SavedThreadMedia.swift; sourceTree = "<group>"; };
 		CBF457C95754D5EAA87ECEFD /* ForumSignTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForumSignTests.swift; sourceTree = "<group>"; };
 		CD2C30123EFF90A5F9BEE7C2 /* Post.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Post.swift; sourceTree = "<group>"; };
 		D1180626C13544DCC568FA5B /* AccountThreadFavoritesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountThreadFavoritesTests.swift; sourceTree = "<group>"; };
@@ -626,6 +638,8 @@
 				CD2C30123EFF90A5F9BEE7C2 /* Post.swift */,
 				638DEF254549D0D4DE625487 /* ReadingPreferences.swift */,
 				FDE02417BF13C2E0A1D7824E /* RecentForum.swift */,
+				0DB03A9A81B77E7ECBD00B30 /* SavedThread.swift */,
+				CBBF9E6133FA9F395134196F /* SavedThreadMedia.swift */,
 				24D4BAC59CD64A3B8F236258 /* SearchHistory.swift */,
 				16DDB351392A69BC42810B9E /* SearchResult.swift */,
 				6BBA032F531024778CFC5C0A /* SecureFilePersistence.swift */,
@@ -749,8 +763,10 @@
 				2758D17C77814946EB5560DA /* MultipartFormDataTests.swift */,
 				BA707FB3466F64C9B7BB74F3 /* NavigationSourceLifecycleTests.swift */,
 				481EB2A4D9C019B333364901 /* PersistenceBoundaryTests.swift */,
+				460C7E1E4622409127D0F888 /* SavedThreadTests.swift */,
 				C60B7C87AF367770BAF70762 /* SearchAPITests.swift */,
 				594CFFAE35B27CDF27D9B903 /* SecurityRegressionTests.swift */,
+				00A0FAAA54B2D05276E46330 /* SessionExpirationMonitorTests.swift */,
 				72A829A6D2ABD0F1D55D90E6 /* SocialRelationshipStateTests.swift */,
 				8D5BFD4EFAD7D98BA703D36C /* StateRegressionTests.swift */,
 				8FBDD5BC8E767866E1874011 /* SwiftDataOrderedCollectionPersistenceTests.swift */,
@@ -885,6 +901,7 @@
 			children = (
 				582A83F679EC3456CD6D08E4 /* BlocklistSettingsView.swift */,
 				432F97822473B7D42DB148EC /* ReadingSettingsView.swift */,
+				B0B960AF4A983D18E1496538 /* SavedThreadsView.swift */,
 				10E2287E1195B4261B0B88E8 /* SettingsView.swift */,
 			);
 			path = Settings;
@@ -905,6 +922,7 @@
 				DB22109F3B9CFD8850C4BEE0 /* AuthSession.swift */,
 				F159C859125D33A23786365A /* LoginWebView.swift */,
 				1D6B235101269A6DE9BEB53A /* LogoutCoordinator.swift */,
+				3A578DF23FC437057492F4BE /* SessionExpirationMonitor.swift */,
 			);
 			path = Auth;
 			sourceTree = "<group>";
@@ -1203,11 +1221,15 @@
 				D0EB13806B12EBFE42C8D71B /* RecentForum.swift in Sources */,
 				A4FCD6601BAA005BF0F264D0 /* RootView.swift in Sources */,
 				C02D20CEC3FEDED464983D96 /* SafariActionPayload.swift in Sources */,
+				1E84B72ACDF13678A6BE6CB8 /* SavedThread.swift in Sources */,
+				C0504704A144B25F4915E062 /* SavedThreadMedia.swift in Sources */,
+				985218E469AF18B5378E8549 /* SavedThreadsView.swift in Sources */,
 				CAA7C941E2D8AAA65B342CBA /* SearchHistory.swift in Sources */,
 				8028A9708BDE36C7BB815CEF /* SearchResult.swift in Sources */,
 				30D4D4D35FD01A12F8D58EAC /* SearchResultsView.swift in Sources */,
 				DEA70B990FBB4F0B3A27998B /* SearchRoute.swift in Sources */,
 				3FB07858552D194FD0AE222C /* SecureFilePersistence.swift in Sources */,
+				EBD1AC0F607CBF4865A92A2A /* SessionExpirationMonitor.swift in Sources */,
 				E4BC7D1B10FF88D762725986 /* SettingsView.swift in Sources */,
 				CDEA6D379FC8528CC2581C94 /* ShortPullRefresh.swift in Sources */,
 				50638626574849A4E23F01EA /* SimpleForum.pb.swift in Sources */,
@@ -1292,8 +1314,10 @@
 				D92FF26A20CE55595F45B81F /* MultipartFormDataTests.swift in Sources */,
 				BE37D589510658CE415782CD /* NavigationSourceLifecycleTests.swift in Sources */,
 				9C4E81261CE11986A7FC94CA /* PersistenceBoundaryTests.swift in Sources */,
+				F5B1D066296990A96D69CC0C /* SavedThreadTests.swift in Sources */,
 				FA2D7EBC13B9CDAE43B9DAC0 /* SearchAPITests.swift in Sources */,
 				D3B0D1E46535FF84CB41BAB7 /* SecurityRegressionTests.swift in Sources */,
+				4D32AA19CAE1A40F2001E6D8 /* SessionExpirationMonitorTests.swift in Sources */,
 				6BF8CB32442EA2DD70E1BEE9 /* SocialRelationshipStateTests.swift in Sources */,
 				C52C1926A49DEF01D6460BB4 /* StateRegressionTests.swift in Sources */,
 				BC0174E4104B48F4D4A8B291 /* SwiftDataOrderedCollectionPersistenceTests.swift in Sources */,
@@ -1413,13 +1437,13 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CURRENT_PROJECT_VERSION = 56;
+				CURRENT_PROJECT_VERSION = 58;
 				INFOPLIST_FILE = TiebaPure/Resources/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.4.12;
+				MARKETING_VERSION = 1.4.14;
 				PRODUCT_BUNDLE_IDENTIFIER = dev.infinityf4p.tiebapure;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -1430,14 +1454,14 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
-				CURRENT_PROJECT_VERSION = 56;
+				CURRENT_PROJECT_VERSION = 58;
 				INFOPLIST_FILE = TiebaPureOpenIn/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.4.12;
+				MARKETING_VERSION = 1.4.14;
 				PRODUCT_BUNDLE_IDENTIFIER = "dev.infinityf4p.tiebapure.open-in";
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
@@ -1483,14 +1507,14 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
-				CURRENT_PROJECT_VERSION = 56;
+				CURRENT_PROJECT_VERSION = 58;
 				INFOPLIST_FILE = TiebaPureOpenIn/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.4.12;
+				MARKETING_VERSION = 1.4.14;
 				PRODUCT_BUNDLE_IDENTIFIER = "dev.infinityf4p.tiebapure.open-in";
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
@@ -1503,13 +1527,13 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CURRENT_PROJECT_VERSION = 56;
+				CURRENT_PROJECT_VERSION = 58;
 				INFOPLIST_FILE = TiebaPure/Resources/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.4.12;
+				MARKETING_VERSION = 1.4.14;
 				PRODUCT_BUNDLE_IDENTIFIER = dev.infinityf4p.tiebapure;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";

@@ -49,6 +49,48 @@ final class TiebaPureUITests: XCTestCase {
         )
     }
 
+    func testThreadCanBeSavedAndOpenedFromSettings() {
+        let app = launchApp(additionalArguments: ["UITEST_RESET_SAVED_THREADS"])
+        openFirstThread(in: app)
+
+        let more = app.buttons["更多"]
+        XCTAssertTrue(more.waitForExistence(timeout: 8))
+        more.tap()
+        let save = app.buttons["保存到本地"]
+        XCTAssertTrue(save.waitForExistence(timeout: 5))
+        save.tap()
+        let textOnly = app.buttons["仅正文"]
+        XCTAssertTrue(textOnly.waitForExistence(timeout: 5))
+        textOnly.tap()
+
+        XCTAssertTrue(app.alerts["本地保存"].waitForExistence(timeout: 12))
+        XCTAssertTrue(app.alerts["本地保存"].staticTexts.element(boundBy: 1).label.contains("已保存主楼"))
+        app.alerts["本地保存"].buttons["好"].tap()
+
+        let back = app.navigationBars.buttons.firstMatch
+        XCTAssertTrue(back.waitForExistence(timeout: 5))
+        back.tap()
+        let me = rootTab("我的", in: app)
+        XCTAssertTrue(me.waitForExistence(timeout: 5))
+        me.tap()
+
+        let settingsEntry = app.descendants(matching: .any)["app-settings-entry"]
+        XCTAssertTrue(revealBySwipingUp(settingsEntry, in: app, maxSwipes: 8))
+        settingsEntry.tap()
+        let savedEntry = app.buttons["settings-saved-threads-entry"]
+        XCTAssertTrue(savedEntry.waitForExistence(timeout: 5))
+        savedEntry.tap()
+
+        XCTAssertTrue(app.navigationBars["本地保存的帖子"].waitForExistence(timeout: 5))
+        let savedThread = app.descendants(matching: .any)["saved-thread-1001"]
+        XCTAssertTrue(savedThread.waitForExistence(timeout: 5))
+        savedThread.tap()
+        XCTAssertTrue(
+            app.descendants(matching: .any)["thread-main-title"].waitForExistence(timeout: 5)
+        )
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "媒体需联网加载")).firstMatch.exists)
+    }
+
     func testThreadMainPostBlocklistShowsExplicitBlockedStateInsteadOfReplies() {
         let app = launchApp(
             additionalArguments: ["UITEST_SEED_MAIN_POST_BLOCKLIST"]
@@ -357,6 +399,24 @@ final class TiebaPureUITests: XCTestCase {
         XCTAssertTrue(app.descendants(matching: .any)["user-profile-screen"].waitForExistence(timeout: 8))
         XCTAssertTrue(app.staticTexts["模拟登录用户"].waitForExistence(timeout: 8))
         XCTAssertFalse(app.buttons["user-profile-follow-button"].exists)
+    }
+
+    func testExpiredSessionShowsPromptAndAutomaticallyLogsOut() {
+        let app = launchApp(scenario: "expired", account: "loggedIn")
+
+        let alert = app.alerts["登录已失效"]
+        XCTAssertTrue(alert.waitForExistence(timeout: 8))
+        XCTAssertTrue(
+            alert.staticTexts["当前账号的登录状态已失效，应用将退出该账号，请重新登录。"].exists
+        )
+        alert.buttons["知道了"].tap()
+
+        let meTab = rootTab("我的", in: app)
+        XCTAssertTrue(meTab.waitForExistence(timeout: 5))
+        meTab.tap()
+        XCTAssertTrue(app.staticTexts["未登录也可以浏览公开帖子"].waitForExistence(timeout: 8))
+        XCTAssertTrue(app.buttons["手机号验证码登录"].exists)
+        XCTAssertFalse(app.buttons["me-user-profile-button"].exists)
     }
 
     func testMessagesGuestPromptAndLoggedInFixtureJourney() {
@@ -2557,29 +2617,22 @@ final class TiebaPureUITests: XCTestCase {
         XCTAssertTrue(rootTab("我的", in: app).exists)
     }
 
-    func testPreIOS26NativeEdgePopRecognizerIsReadyInSwiftUINavigationStack() throws {
+    func testPreIOS26NavigationRemainsResponsiveWithoutRecognizerOverride() throws {
         guard #unavailable(iOS 26.0) else {
             throw XCTSkip("iOS 26 uses the native content-pop recognizer")
         }
 
-        let app = launchApp(additionalArguments: ["UITEST_NAVIGATION_POP_DIAGNOSTICS"])
+        let app = launchApp()
         openFirstThread(in: app)
-
-        let diagnostics = app.descendants(matching: .any)["navigation-pop-gesture-diagnostics"]
-        XCTAssertTrue(diagnostics.waitForExistence(timeout: 8))
-        let ready = XCTNSPredicateExpectation(
-            predicate: NSPredicate(
-                format: "value CONTAINS %@ AND value CONTAINS %@ AND value CONTAINS %@ AND value CONTAINS %@ AND value CONTAINS %@",
-                "enabled=true",
-                "shouldBegin=true",
-                "depth=2",
-                "visible=true",
-                "attached=true"
-            ),
-            object: diagnostics
-        )
-        XCTAssertEqual(XCTWaiter.wait(for: [ready], timeout: 8), .completed)
         XCTAssertTrue(app.buttons["更多"].exists)
+
+        let backButton = app.navigationBars.buttons.element(boundBy: 0)
+        XCTAssertTrue(waitForHittable(backButton, expected: true, timeout: 5))
+        backButton.tap()
+        XCTAssertTrue(app.navigationBars["首页"].waitForExistence(timeout: 5))
+
+        openFirstThread(in: app)
+        XCTAssertTrue(app.buttons["更多"].waitForExistence(timeout: 5))
     }
 
     func testThreadShortRightDragCancelsWithoutChangingRoute() {
@@ -3732,6 +3785,150 @@ final class TiebaPureUITests: XCTestCase {
         XCTAssertTrue(app.buttons["更多"].exists)
     }
 
+    func testIssue54IPadSubpostTextSelectionStaysResponsive() throws {
+        guard UIDevice.current.userInterfaceIdiom == .pad else {
+            throw XCTSkip("仅在 iPad 设备矩阵中运行。")
+        }
+        let app = launchApp(scenario: "longContent", disableAnimations: false)
+        XCUIDevice.shared.orientation = .landscapeLeft
+        addTeardownBlock {
+            XCUIDevice.shared.orientation = .portrait
+        }
+        openFirstThread(in: app)
+
+        let previewText = app.descendants(matching: .any)
+            .matching(identifier: "thread-subpost-preview-text")
+            .firstMatch
+        let detailScrollView = app.scrollViews["thread-detail-scroll-view"]
+        XCTAssertTrue(detailScrollView.waitForExistence(timeout: 8))
+        for _ in 0..<20 where previewText.exists == false || previewText.isHittable == false {
+            detailScrollView.swipeUp()
+        }
+        XCTAssertTrue(previewText.exists && previewText.isHittable)
+
+        for iteration in 0..<5 {
+            previewText.coordinate(withNormalizedOffset: CGVector(dx: 0.55, dy: 0.5))
+                .press(forDuration: 1.2)
+
+            let copyControl = app.descendants(matching: .any)
+                .matching(NSPredicate(format: "label IN %@", ["复制", "拷贝", "Copy"]))
+                .firstMatch
+            XCTAssertTrue(
+                copyControl.waitForExistence(timeout: 5),
+                "第\(iteration + 1)次楼中楼文本选择后界面失去响应"
+            )
+            XCTAssertTrue(waitForHittable(copyControl, expected: true, timeout: 5))
+            copyControl.tap()
+            XCTAssertTrue(
+                app.buttons["更多"].waitForExistence(timeout: 5),
+                "第\(iteration + 1)次复制后帖子页失去响应"
+            )
+        }
+
+        let openAllButton = app.buttons["查看全部4条回复"]
+        for _ in 0..<8 where openAllButton.exists == false || openAllButton.isHittable == false {
+            detailScrollView.swipeUp()
+        }
+        XCTAssertTrue(openAllButton.exists && openAllButton.isHittable)
+        openAllButton.tap()
+        XCTAssertTrue(
+            app.navigationBars["2楼的回复(4条)"].waitForExistence(timeout: 8),
+            "反复选择楼中楼文字后仍应可以打开回复列表"
+        )
+    }
+
+    func testIssue60IPadTitleAndMainPostSelectionStayResponsive() throws {
+        guard UIDevice.current.userInterfaceIdiom == .pad else {
+            throw XCTSkip("仅在 iPad 设备矩阵中运行。")
+        }
+        let app = launchApp(scenario: "longContent", disableAnimations: false)
+        openFirstThread(in: app)
+
+        let targets = [
+            app.descendants(matching: .any)["thread-main-title"],
+            app.descendants(matching: .any)["thread-main-text"]
+        ]
+        for target in targets {
+            XCTAssertTrue(target.waitForExistence(timeout: 8))
+            XCTAssertTrue(waitForHittable(target, expected: true, timeout: 5))
+            for iteration in 0..<3 {
+                target.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.45))
+                    .press(forDuration: 1.2)
+                let copyControl = app.descendants(matching: .any)
+                    .matching(NSPredicate(format: "label IN %@", ["复制", "拷贝", "Copy"]))
+                    .firstMatch
+                XCTAssertTrue(
+                    copyControl.waitForExistence(timeout: 5),
+                    "第\(iteration + 1)次长按标题或主楼后界面失去响应"
+                )
+                XCTAssertTrue(waitForHittable(copyControl, expected: true, timeout: 5))
+                copyControl.tap()
+                XCTAssertTrue(
+                    app.buttons["更多"].waitForExistence(timeout: 5),
+                    "复制后帖子工具栏应继续响应"
+                )
+            }
+        }
+    }
+
+    func testIssue62ThreadSearchRepeatedlyOpensWithoutFreezing() {
+        let app = launchApp(disableAnimations: false)
+        openFirstThread(in: app)
+
+        for iteration in 0..<5 {
+            let search = app.buttons["搜索本吧"]
+            XCTAssertTrue(search.waitForExistence(timeout: 5))
+            XCTAssertTrue(waitForHittable(search, expected: true, timeout: 5))
+            search.tap()
+
+            let searchBar = app.navigationBars["测试吧搜索"]
+            XCTAssertTrue(
+                searchBar.waitForExistence(timeout: 8),
+                "第\(iteration + 1)次从帖子打开搜索时界面失去响应"
+            )
+            XCTAssertTrue(app.textFields["search-input"].exists)
+            if UIDevice.current.userInterfaceIdiom == .pad {
+                let input = app.textFields["search-input"]
+                input.tap()
+                input.typeText("1")
+                XCTAssertTrue(
+                    (input.value as? String)?.contains("1") == true,
+                    "第\(iteration + 1)次打开搜索后输入框应继续响应"
+                )
+                rootTab("首页", in: app).tap()
+                XCTAssertTrue(threadRows(in: app).firstMatch.waitForExistence(timeout: 8))
+                if iteration < 4 { openFirstThread(in: app) }
+                continue
+            }
+            let back = searchBar.buttons.firstMatch
+            XCTAssertTrue(waitForHittable(back, expected: true, timeout: 5))
+            back.tap()
+            XCTAssertTrue(
+                app.buttons["更多"].waitForExistence(timeout: 8),
+                "第\(iteration + 1)次退出帖子搜索后来源页失去响应"
+            )
+        }
+    }
+
+    func testIssue63HomeAvatarProfileThreadNavigationStaysResponsive() {
+        let app = launchApp(disableAnimations: false)
+        let user = app.buttons["feed-user-button-1"].firstMatch
+        XCTAssertTrue(user.waitForExistence(timeout: 45))
+        XCTAssertTrue(waitForHittable(user, expected: true, timeout: 5))
+        user.tap()
+
+        let profile = app.descendants(matching: .any)["user-profile-screen"]
+        XCTAssertTrue(profile.waitForExistence(timeout: 8), "从首页头像进入主页时不应卡死")
+        let profileThread = app.buttons["user-profile-thread-row-1002"]
+        XCTAssertTrue(profileThread.waitForExistence(timeout: 8))
+        XCTAssertTrue(scrollToHittable(profileThread, in: app.scrollViews["user-profile-screen"]))
+        profileThread.tap()
+        XCTAssertTrue(
+            app.buttons["更多"].waitForExistence(timeout: 8),
+            "从首页主页进入用户帖子时不应卡死"
+        )
+    }
+
     func testIssue37RepeatedProfileNavigationAndTextSelectionStayResponsive() {
         let app = launchApp(
             scenario: "longContent",
@@ -3786,6 +3983,7 @@ final class TiebaPureUITests: XCTestCase {
         XCTAssertTrue(waitForElement(named: "查看全部4条回复", in: app, maxSwipes: 20))
         let openAllButton = app.buttons["查看全部4条回复"]
         XCTAssertEqual(openAllButton.frame.height, 36, accuracy: 1)
+        let sourceFrameBeforePresentation = openAllButton.frame
         openAllButton.tap()
         let navigationBar = app.navigationBars["2楼的回复(4条)"]
         XCTAssertTrue(navigationBar.waitForExistence(timeout: 8))
@@ -3803,12 +4001,18 @@ final class TiebaPureUITests: XCTestCase {
         )
         attachScreenshot(named: "fixture-subpost-reference-layout")
 
-        let downwardStart = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.32))
-        let downwardEnd = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.72))
-        downwardStart.press(forDuration: 0.05, thenDragTo: downwardEnd)
-        XCTAssertTrue(navigationBar.exists, "楼中楼下滑只能滚动内容，不应退出")
-
         let restingFrame = navigationBar.frame
+        let shortPullStart = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.32))
+        let shortPullEnd = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.39))
+        shortPullStart.press(
+            forDuration: 0.05,
+            thenDragTo: shortPullEnd,
+            withVelocity: 40,
+            thenHoldForDuration: 0.25
+        )
+        XCTAssertTrue(navigationBar.waitForExistence(timeout: 3))
+        XCTAssertEqual(navigationBar.frame.minY, restingFrame.minY, accuracy: 2)
+
         let parentMetadata = app.descendants(matching: .any)["thread-subpost-parent-metadata"]
         XCTAssertTrue(parentMetadata.waitForExistence(timeout: 5))
         let partialSwipeStart = parentMetadata.coordinate(
@@ -3825,14 +4029,33 @@ final class TiebaPureUITests: XCTestCase {
         XCTAssertEqual(navigationBar.frame.minY, restingFrame.minY, accuracy: 2)
         XCTAssertEqual(navigationBar.frame.minX, restingFrame.minX, accuracy: 2)
 
-        for cycle in 0..<4 {
-            if cycle > 0 {
-                XCTAssertTrue(
-                    waitForElement(named: "查看全部4条回复", in: app, maxSwipes: 5)
-                )
-                app.buttons["查看全部4条回复"].tap()
-                XCTAssertTrue(navigationBar.waitForExistence(timeout: 8))
-            }
+        let pullStart = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.30))
+        let pullEnd = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.72))
+        pullStart.press(
+            forDuration: 0.05,
+            thenDragTo: pullEnd,
+            withVelocity: 300,
+            thenHoldForDuration: 0.3
+        )
+        let pullDismissed = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "exists == false"),
+            object: navigationBar
+        )
+        XCTAssertEqual(XCTWaiter.wait(for: [pullDismissed], timeout: 5), .completed)
+        XCTAssertTrue(waitForElement(named: "查看全部4条回复", in: app, maxSwipes: 2))
+        XCTAssertEqual(
+            app.buttons["查看全部4条回复"].frame.minY,
+            sourceFrameBeforePresentation.minY,
+            accuracy: 3,
+            "下拉关闭后帖子阅读位置不能跳回主楼"
+        )
+
+        for cycle in 0..<3 {
+            XCTAssertTrue(
+                waitForElement(named: "查看全部4条回复", in: app, maxSwipes: 2)
+            )
+            app.buttons["查看全部4条回复"].tap()
+            XCTAssertTrue(navigationBar.waitForExistence(timeout: 8))
 
             XCTAssertEqual(
                 app.navigationBars.matching(identifier: "2楼的回复(4条)").count,
@@ -4053,6 +4276,29 @@ final class TiebaPureUITests: XCTestCase {
             object: sourceImage
         )
         XCTAssertEqual(XCTWaiter.wait(for: [sourceIsHittableAgain], timeout: 5), .completed)
+    }
+
+    func testFirstFullScreenImageUpgradesLowResolutionPreviewWithoutPagingAway() {
+        let app = launchApp(additionalArguments: [
+            "UITEST_IMAGE_VIEWER",
+            "UITEST_IMAGE_VIEWER_LOW_RESOLUTION_PREVIEW"
+        ])
+
+        let originalButton = app.buttons["view-original-image"]
+        XCTAssertTrue(originalButton.waitForExistence(timeout: 8))
+        let loaded = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "label == %@", "原图已加载"),
+            object: originalButton
+        )
+        XCTAssertEqual(
+            XCTWaiter.wait(for: [loaded], timeout: 8),
+            .completed,
+            "第一张低清预览应在当前页直接升级，不应要求先切换到其他图片"
+        )
+        XCTAssertFalse(
+            app.staticTexts["image-page-indicator"].exists,
+            "单图查看器不应显示分页指示器"
+        )
     }
 
     func testFullScreenImageControlsFitAtAccessibilityXXXL() {
@@ -5286,9 +5532,10 @@ final class TiebaPureUITests: XCTestCase {
             let searchNavigationBar = app.navigationBars["测试吧搜索"]
             XCTAssertTrue(searchNavigationBar.waitForExistence(timeout: 8))
             XCTAssertTrue(app.textFields["search-input"].exists)
-            let backButton = searchNavigationBar.buttons["BackButton"]
+            let backButton = searchNavigationBar.buttons.firstMatch
             XCTAssertTrue(
-                backButton.waitForExistence(timeout: 5),
+                backButton.waitForExistence(timeout: 5)
+                    && waitForHittable(backButton, expected: true, timeout: 5),
                 "第\(iteration + 1)次进入吧内搜索后应存在系统返回按钮"
             )
             backButton.tap()
@@ -5381,31 +5628,28 @@ final class TiebaPureUITests: XCTestCase {
         guard UIDevice.current.userInterfaceIdiom == .pad else {
             throw XCTSkip("仅在 iPad 设备矩阵中运行。")
         }
-        let app = launchApp()
-        XCUIDevice.shared.orientation = .landscapeLeft
         addTeardownBlock {
             XCUIDevice.shared.orientation = .portrait
         }
-
-        let landscape = XCTNSPredicateExpectation(
-            predicate: NSPredicate { object, _ in
-                guard let application = object as? XCUIApplication else { return false }
-                return application.frame.width > application.frame.height
-            },
-            object: app
-        )
-        XCTAssertEqual(XCTWaiter.wait(for: [landscape], timeout: 8), .completed)
+        XCUIDevice.shared.orientation = .landscapeLeft
+        let app = launchApp()
 
         let firstThreadRow = threadRows(in: app).firstMatch
         XCTAssertTrue(firstThreadRow.waitForExistence(timeout: 8))
+        let appFrame = app.frame
+        XCTAssertGreaterThan(
+            appFrame.width,
+            appFrame.height,
+            "iPad 横屏布局测试必须在横屏窗口中运行"
+        )
         XCTAssertGreaterThanOrEqual(
             firstThreadRow.frame.width,
-            app.frame.width * 0.35,
+            appFrame.width * 0.35,
             "iPad 横屏帖子行应使用足够的横向空间展示标题"
         )
         XCTAssertLessThan(
             firstThreadRow.frame.maxX,
-            app.frame.midX,
+            appFrame.midX,
             "左侧帖子列表不能挤占右侧详情栏"
         )
     }
