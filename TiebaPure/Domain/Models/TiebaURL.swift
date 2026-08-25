@@ -192,3 +192,24 @@ enum TiebaRemoteMediaPolicy {
         }
     }
 }
+
+
+extension URL {
+    /// iOS 15-compatible replacement for `appending(path:directoryHint:)`.
+    /// The Foundation overload introduced in iOS 16 is intentionally avoided
+    /// so endpoint construction has the same minimum system version as the app.
+    func appendingLegacyPath(_ path: String, isDirectory: Bool = false) -> URL {
+        let normalizedPath = path.hasPrefix("/") ? String(path.dropFirst()) : path
+        return appendingPathComponent(normalizedPath, isDirectory: isDirectory)
+    }
+
+    /// iOS 15-compatible replacement for `appending(queryItems:)`.
+    func appendingLegacyQueryItems(_ items: [URLQueryItem]) -> URL {
+        guard items.isEmpty == false,
+              var components = URLComponents(url: self, resolvingAgainstBaseURL: false) else {
+            return self
+        }
+        components.queryItems = (components.queryItems ?? []) + items
+        return components.url ?? self
+    }
+}
