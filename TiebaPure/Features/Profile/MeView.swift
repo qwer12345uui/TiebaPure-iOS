@@ -17,11 +17,13 @@ struct MeView: View {
         ) {
             Form {
                 if let account {
-                    Section("账号") {
+                    Section {
+                        accountSectionHeader
+
                         Button {
                             openUser(userSummary(for: account), sourceThreadID: nil)
                         } label: {
-                            HStack(spacing: TiebaPureTheme.Spacing.sm) {
+                            HStack(alignment: .center, spacing: TiebaPureTheme.Spacing.sm) {
                                 AvatarView(
                                     url: account.portraitURL,
                                     title: account.displayName,
@@ -37,6 +39,7 @@ struct MeView: View {
                                         .font(.footnote)
                                         .foregroundStyle(.secondary)
                                 }
+                                .frame(maxHeight: .infinity, alignment: .center)
 
                                 Spacer(minLength: TiebaPureTheme.Spacing.sm)
 
@@ -45,11 +48,11 @@ struct MeView: View {
                                     .foregroundStyle(.tertiary)
                                     .accessibilityHidden(true)
                             }
-                            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                            .frame(maxWidth: .infinity, minHeight: 68, alignment: .leading)
                             .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
-                        .padding(.vertical, TiebaPureTheme.Spacing.xs)
+                        .padding(.vertical, TiebaPureTheme.Spacing.xxs)
                         .accessibilityLabel("查看\(account.displayName)的用户主页")
                         .accessibilityHint("打开自己的用户主页")
                         .accessibilityIdentifier("me-user-profile-button")
@@ -89,7 +92,9 @@ struct MeView: View {
                         .accessibilityHint("打开已关注的贴吧列表")
                     }
                 } else {
-                    Section("账号") {
+                    Section {
+                        accountSectionHeader
+
                         VStack(alignment: .leading, spacing: TiebaPureTheme.Spacing.sm) {
                             Label("未登录也可以浏览公开帖子", systemImage: "book")
                                 .font(.body)
@@ -191,6 +196,18 @@ struct MeView: View {
             }
         }
         .compatibleTabBarVisibility()
+    }
+
+    private var accountSectionHeader: some View {
+        Text("账号")
+            .font(.headline)
+            .foregroundStyle(.secondary)
+            .textCase(nil)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.top, TiebaPureTheme.Spacing.sm)
+            .padding(.bottom, TiebaPureTheme.Spacing.xxs)
+            .accessibilityAddTraits(.isHeader)
+            .accessibilityIdentifier("me-account-section-header")
     }
 
     private var browsingHistoryAccessibilityLabel: String {

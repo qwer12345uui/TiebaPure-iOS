@@ -306,11 +306,17 @@ private struct MainTabView: View {
                     .padding(.horizontal, TiebaPureTheme.Spacing.md)
                     .padding(.top, TiebaPureTheme.Spacing.xs)
                     .padding(.bottom, TiebaPureTheme.Spacing.xs)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
         .onPreferenceChange(FloatingTabBarHiddenPreferenceKey.self) { isHidden in
-            withAnimation(.easeInOut(duration: 0.20)) {
+            guard isFloatingTabBarHidden != isHidden else { return }
+            // A tab-bar visibility preference changes the root safe area. Keep
+            // that layout mutation out of UIKit's push/pop transition so the
+            // first frame of a thread detail does not compete with a second
+            // move-and-fade animation.
+            var transaction = Transaction()
+            transaction.disablesAnimations = true
+            withTransaction(transaction) {
                 isFloatingTabBarHidden = isHidden
             }
         }

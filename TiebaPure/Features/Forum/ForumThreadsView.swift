@@ -32,6 +32,8 @@ struct ForumThreadsView: View {
     @State private var requestGeneration = 0
     @State private var activeRequestKey: ForumThreadsRequestKey?
     @State private var loadTask: Task<[ThreadSummary], Error>?
+    @State private var avatarResolutionTask: Task<Void, Never>?
+    @State private var didAttemptRecentAvatarResolution = false
     @State private var forumMembership: ForumMembership?
     @State private var isUpdatingForumFollow = false
     @State private var forumActionError: String?
@@ -279,6 +281,8 @@ struct ForumThreadsView: View {
             ) else { return }
             cancelSubmissionNavigation()
             loadTask?.cancel()
+            avatarResolutionTask?.cancel()
+            avatarResolutionTask = nil
             requestGeneration += 1
             isLoading = false
             cancelSocialRequests()
@@ -592,6 +596,48 @@ struct ForumThreadsView: View {
         activeThread = ForumThreadRoute(threadID: threadID, forumID: forumID)
     }
 
+    private func cacheRecentForumAvatar(from threads: [ThreadSummary]) {
+        if let resolved = ForumRecentAvatarResolver.resolvedForum(forum, threads: threads) {
+            _ = RecentForumStore.shared.save(resolved)
+            return
+        }
+        resolveRecentForumAvatarThroughSearchIfNeeded()
+    }
+
+    private func resolveRecentForumAvatarThroughSearchIfNeeded() {
+        guard forum.avatarURL == nil,
+              avatarResolutionTask == nil,
+              didAttemptRecentAvatarResolution == false else {
+            return
+        }
+        didAttemptRecentAvatarResolution = true
+        let requestedForum = forum
+        avatarResolutionTask = Task {
+            defer { avatarResolutionTask = nil }
+            do {
+                let page = try await environment.api.searchThreads(
+                    keyword: requestedForum.name,
+                    page: 1,
+                    forumName: requestedForum.name,
+                    pageSize: 10
+                )
+                guard Task.isCancelled == false,
+                      let resolved = ForumRecentAvatarResolver.resolvedForum(
+                        requestedForum,
+                        searchResults: page.results
+                      ) else {
+                    return
+                }
+                _ = RecentForumStore.shared.save(resolved)
+            } catch is CancellationError {
+                return
+            } catch {
+                // A missing avatar must not block reading a forum. The tile
+                // remains usable and a later visit can retry the lookup.
+            }
+        }
+    }
+
     private func reload() async {
         loadTask?.cancel()
         requestGeneration += 1
@@ -641,6 +687,9 @@ struct ForumThreadsView: View {
                   requestKey == activeRequestKey,
                   requestedSession == account?.sessionIdentity,
                   requestKey.category == selectedCategory else { return }
+            if requestedPage == 1 {
+                cacheRecentForumAvatar(from: next)
+            }
             let visibleNext = next.filter(TiebaContentFilter.shouldKeep(thread:))
             if requestedPage == 1 {
                 threads = visibleNext
@@ -969,6 +1018,63 @@ enum ContentSubmissionForumResolver {
 enum ForumThreadsOpenDestination: Equatable {
     case parentReader
     case localStack
+}
+
+/// Resolves a recent-forum avatar only from records that identify the same
+/// forum. The input route can be created from plain text, so it commonly has
+/// no ID or avatar until the first response arrives.
+enum ForumRecentAvatarResolver {
+    static func resolvedForum(_ forum: Forum, threads: [ThreadSummary]) -> Forum? {
+        guard let source = threads.first(where: {
+            $0.forumAvatarURL != nil && matches(forumName: $0.forumName, forum: forum)
+        }) else {
+            return nil
+        }
+        return resolvedForum(
+            forum,
+            forumID: source.forumID,
+            avatarURL: source.forumAvatarURL
+        )
+    }
+
+    static func resolvedForum(_ forum: Forum, searchResults: [SearchResult]) -> Forum? {
+        guard let source = searchResults.first(where: {
+            $0.forumAvatarURL != nil && matches(forumName: $0.forumName, forum: forum)
+        }) else {
+            return nil
+        }
+        return resolvedForum(
+            forum,
+            forumID: source.forumID,
+            avatarURL: source.forumAvatarURL
+        )
+    }
+
+    private static func resolvedForum(
+        _ forum: Forum,
+        forumID: Int64?,
+        avatarURL: URL?
+    ) -> Forum? {
+        guard let avatarURL else { return nil }
+        var resolved = forum
+        if resolved.id <= 0, let forumID, forumID > 0 {
+            resolved.id = forumID
+        }
+        resolved.avatarURL = avatarURL
+        return resolved
+    }
+
+    private static func matches(forumName: String?, forum: Forum) -> Bool {
+        guard let forumName else { return false }
+        return normalized(forumName) == normalized(forum.name)
+    }
+
+    private static func normalized(_ name: String) -> String {
+        name
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .precomposedStringWithCanonicalMapping
+            .folding(options: [.caseInsensitive, .diacriticInsensitive, .widthInsensitive], locale: .current)
+    }
 }
 
 enum ForumThreadsOpenRoutingPolicy {

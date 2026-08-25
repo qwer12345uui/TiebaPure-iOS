@@ -1975,6 +1975,18 @@ struct ThreadDetailView: View {
                 throw TiebaAPIError.missingMainPost
             }
             let mergedMainPost = ThreadPageMainPostPolicy.mainPost(in: mergedPage)
+            if requestedPage == 1, didLoad == false {
+                // A cache-fast request can otherwise publish a large post tree
+                // while UIKit is still animating the push. Suspending does not
+                // block the main thread; it lets the navigation controller draw
+                // its first transition frames before SwiftUI lays out rows,
+                // media and reply controls.
+                try await Task.sleep(nanoseconds: 360_000_000)
+                guard generation == requestGeneration,
+                      requestedSession == account?.sessionIdentity,
+                      requestedSeeLz == seeLz,
+                      requestedSort == sortType else { return }
+            }
             isMainPostBlocked = mergedMainPost.map {
                 TiebaContentFilter.shouldKeep(post: $0) == false
             } ?? false

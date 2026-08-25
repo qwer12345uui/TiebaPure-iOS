@@ -79,6 +79,47 @@ final class StateRegressionTests: XCTestCase, StateRegressionScratchDefaultsProv
         XCTAssertTrue(cleared.items.isEmpty)
     }
 
+    func testForumRecentAvatarResolverUsesOnlyTheMatchingForum() {
+        let requestedForum = Forum(
+            id: 0,
+            name: "斗鱼",
+            displayName: "斗鱼吧",
+            avatarURL: nil,
+            memberCount: 0,
+            threadCount: 0
+        )
+        let unrelated = ThreadSummary(
+            id: 1,
+            forumID: 300,
+            title: "无关帖子",
+            author: UserSummary(id: 1, name: "用户", displayName: "用户", portrait: ""),
+            forumName: "其他贴吧",
+            forumAvatarURL: URL(string: "https://example.com/other.png"),
+            replyCount: 0,
+            viewCount: 0,
+            blocks: []
+        )
+        let matching = ThreadSummary(
+            id: 2,
+            forumID: 101,
+            title: "斗鱼帖子",
+            author: UserSummary(id: 2, name: "用户", displayName: "用户", portrait: ""),
+            forumName: "斗鱼",
+            forumAvatarURL: URL(string: "https://example.com/douyu.png"),
+            replyCount: 0,
+            viewCount: 0,
+            blocks: []
+        )
+
+        let resolved = ForumRecentAvatarResolver.resolvedForum(
+            requestedForum,
+            threads: [unrelated, matching]
+        )
+
+        XCTAssertEqual(resolved?.id, 101)
+        XCTAssertEqual(resolved?.avatarURL, URL(string: "https://example.com/douyu.png"))
+    }
+
     @MainActor
     func testRecentForumStoreRemovesSelectedEntriesDurably() throws {
         let container = try makeInMemoryModelContainer()

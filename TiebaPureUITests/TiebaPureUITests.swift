@@ -391,8 +391,16 @@ final class TiebaPureUITests: XCTestCase {
         let app = launchApp(account: "loggedIn")
         rootTab("我的", in: app).tap()
 
+        let accountHeader = app.descendants(matching: .any)["me-account-section-header"]
         let profileButton = app.buttons["me-user-profile-button"]
+        XCTAssertTrue(accountHeader.waitForExistence(timeout: 8))
         XCTAssertTrue(profileButton.waitForExistence(timeout: 8))
+        XCTAssertLessThanOrEqual(
+            accountHeader.frame.maxY,
+            profileButton.frame.minY + 1,
+            "账号标题必须位于资料卡片上方，不能覆盖头像或昵称"
+        )
+        XCTAssertGreaterThanOrEqual(profileButton.frame.height, 68)
         XCTAssertTrue(waitForHittable(profileButton, expected: true, timeout: 5))
         profileButton.tap()
 
