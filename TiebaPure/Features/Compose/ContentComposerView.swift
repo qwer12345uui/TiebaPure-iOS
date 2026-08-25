@@ -148,10 +148,9 @@ struct ContentComposerView: View {
                 )
             }
 
-            TextField("请输入帖子标题", text: $title, axis: .vertical)
+            titleTextField
                 .textFieldStyle(.plain)
                 .font(.body)
-                .lineLimit(1...3)
                 .focused($focusedField, equals: .title)
                 .submitLabel(.next)
                 .onSubmit { focusedField = .body }
@@ -165,6 +164,16 @@ struct ContentComposerView: View {
                         .stroke(Color(uiColor: .separator), lineWidth: 0.5)
                 }
                 .accessibilityLabel("帖子标题")
+        }
+    }
+
+    @ViewBuilder
+    private var titleTextField: some View {
+        if #available(iOS 16.0, *) {
+            TextField("请输入帖子标题", text: $title, axis: .vertical)
+                .lineLimit(1...3)
+        } else {
+            TextField("请输入帖子标题", text: $title)
         }
     }
 
@@ -243,7 +252,7 @@ struct ContentComposerView: View {
                 }
                 .padding(.vertical, 2)
             }
-            .scrollIndicators(.hidden)
+            .compatibleScrollIndicatorsHidden()
         }
     }
 
@@ -280,7 +289,7 @@ struct ContentComposerView: View {
                 }
                 .padding(.vertical, 2)
             }
-            .scrollIndicators(.hidden)
+            .compatibleScrollIndicatorsHidden()
             .frame(height: 98)
         }
     }

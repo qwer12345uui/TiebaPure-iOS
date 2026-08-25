@@ -324,3 +324,17 @@ extension View {
         }
     }
 }
+
+
+extension View {
+    /// Applies SwiftUI scroll indicator visibility only on systems that expose
+    /// the API; iOS 15 retains the platform default indicator behavior.
+    @ViewBuilder
+    func compatibleScrollIndicatorsHidden() -> some View {
+        if #available(iOS 16.0, *) {
+            scrollIndicators(.hidden)
+        } else {
+            self
+        }
+    }
+}
