@@ -97,7 +97,7 @@ struct ReaderSplitDetailPlaceholder: View {
 /// hosts the tab's existing navigation stack; thread opens from lists inside
 /// it land in a shared detail column. Compact width keeps the plain stack so
 /// iPhone and narrow iPad Split View behavior is unchanged.
-struct ReaderSplitLayout<Route: Hashable, ListColumn: View, DetailRoot: View>: View {
+struct ReaderSplitLayout<Route: Hashable, ListColumn: View, DetailRoot: View, LegacyDestination: View>: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     let account: Account?
@@ -107,6 +107,7 @@ struct ReaderSplitLayout<Route: Hashable, ListColumn: View, DetailRoot: View>: V
     var openThreadInCompact: ((ReaderSplitThreadRoute) -> Void)?
     let listColumn: () -> ListColumn
     let detailRoot: (ReaderSplitDetailPlaceholder) -> DetailRoot
+    let legacyDestination: (Route) -> LegacyDestination
 
     init(
         account: Account?,
@@ -114,6 +115,7 @@ struct ReaderSplitLayout<Route: Hashable, ListColumn: View, DetailRoot: View>: V
         detailPath: Binding<[ReaderSplitThreadRoute]>,
         openThreadInDetail: ((ReaderSplitThreadRoute) -> Void)? = nil,
         openThreadInCompact: ((ReaderSplitThreadRoute) -> Void)? = nil,
+        @ViewBuilder legacyDestination: @escaping (Route) -> LegacyDestination,
         @ViewBuilder listColumn: @escaping () -> ListColumn,
         detailRoot: @escaping (ReaderSplitDetailPlaceholder) -> DetailRoot
     ) {
@@ -122,24 +124,32 @@ struct ReaderSplitLayout<Route: Hashable, ListColumn: View, DetailRoot: View>: V
         _detailPath = detailPath
         self.openThreadInDetail = openThreadInDetail
         self.openThreadInCompact = openThreadInCompact
+        self.legacyDestination = legacyDestination
         self.listColumn = listColumn
         self.detailRoot = detailRoot
     }
 
     var body: some View {
-        if horizontalSizeClass == .regular {
-            GeometryReader { geometry in
-                let leadingColumnWidth = ReaderSplitColumnWidthPolicy.preferredWidth(
-                    containerWidth: geometry.size.width
-                )
+        Group {
+            if #available(iOS 16.0, *) {
+                if horizontalSizeClass == .regular {
+                    GeometryReader { geometry in
+                        let leadingColumnWidth = ReaderSplitColumnWidthPolicy.preferredWidth(
+                            containerWidth: geometry.size.width
+                        )
 
-                splitNavigation(leadingColumnWidth: leadingColumnWidth)
+                        splitNavigation(leadingColumnWidth: leadingColumnWidth)
+                    }
+                } else {
+                    compactNavigation
+                }
+            } else {
+                compactLegacyNavigation
             }
-        } else {
-            compactNavigation
         }
     }
 
+    @available(iOS 16.0, *)
     private func splitNavigation(leadingColumnWidth: CGFloat) -> some View {
         NavigationSplitView(columnVisibility: .constant(.doubleColumn)) {
             splitListNavigation(leadingColumnWidth: leadingColumnWidth)
@@ -165,6 +175,7 @@ struct ReaderSplitLayout<Route: Hashable, ListColumn: View, DetailRoot: View>: V
         .navigationSplitViewStyle(.balanced)
     }
 
+    @available(iOS 16.0, *)
     @ViewBuilder
     private func splitListNavigation(leadingColumnWidth: CGFloat) -> some View {
         if #available(iOS 17.0, *) {
@@ -189,12 +200,14 @@ struct ReaderSplitLayout<Route: Hashable, ListColumn: View, DetailRoot: View>: V
         }
     }
 
+    @available(iOS 16.0, *)
     private var splitListStack: some View {
         NavigationStack(path: $navigationPath) {
             listColumn()
         }
     }
 
+    @available(iOS 16.0, *)
     private var compactNavigation: some View {
         NavigationStack(path: $navigationPath) {
             listColumn()
@@ -202,6 +215,16 @@ struct ReaderSplitLayout<Route: Hashable, ListColumn: View, DetailRoot: View>: V
         // A compact handler lets the parent keep ownership of a thread opened
         // by a nested list. The same selection remains transferable when the
         // horizontal size class changes between compact and regular.
+        .environment(\.readerSplitOpenThread, compactOpenThreadAction)
+    }
+
+    private var compactLegacyNavigation: some View {
+        CompatiblePathNavigationContainer(
+            path: $navigationPath,
+            destination: legacyDestination
+        ) {
+            listColumn()
+        }
         .environment(\.readerSplitOpenThread, compactOpenThreadAction)
     }
 
@@ -221,6 +244,7 @@ extension ReaderSplitLayout where DetailRoot == ReaderSplitDetailPlaceholder {
         detailPath: Binding<[ReaderSplitThreadRoute]>,
         openThreadInDetail: ((ReaderSplitThreadRoute) -> Void)? = nil,
         openThreadInCompact: ((ReaderSplitThreadRoute) -> Void)? = nil,
+        @ViewBuilder legacyDestination: @escaping (Route) -> LegacyDestination,
         @ViewBuilder listColumn: @escaping () -> ListColumn
     ) {
         self.init(
@@ -229,6 +253,7 @@ extension ReaderSplitLayout where DetailRoot == ReaderSplitDetailPlaceholder {
             detailPath: detailPath,
             openThreadInDetail: openThreadInDetail,
             openThreadInCompact: openThreadInCompact,
+            legacyDestination: legacyDestination,
             listColumn: listColumn,
             detailRoot: { $0 }
         )

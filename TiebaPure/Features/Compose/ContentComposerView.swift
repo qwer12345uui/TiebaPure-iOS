@@ -59,7 +59,7 @@ struct ContentComposerView: View {
     }
 
     var body: some View {
-        NavigationStack {
+        CompatibleNavigationContainer {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
                     Text(target.prompt)
@@ -83,7 +83,7 @@ struct ContentComposerView: View {
                 .padding(.horizontal, 16)
                 .padding(.vertical, 20)
             }
-            .scrollDismissesKeyboard(.interactively)
+            .compatibleInteractiveKeyboardDismissal()
             .accessibilityIdentifier("content-composer-scroll-view")
             .background(Color(uiColor: .systemGroupedBackground))
             .navigationTitle(target.kind.navigationTitle)
@@ -196,7 +196,7 @@ struct ContentComposerView: View {
                 TextEditor(text: $bodyText)
                     .font(.body)
                     .focused($focusedField, equals: .body)
-                    .scrollContentBackground(.hidden)
+                    .compatibleScrollContentBackgroundHidden()
                     .padding(.horizontal, 8)
                     .padding(.vertical, 6)
                     .frame(minHeight: max(editorMinimumHeight, 132))

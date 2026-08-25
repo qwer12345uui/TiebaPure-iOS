@@ -77,7 +77,7 @@ struct SavedThreadsView: View {
         .searchable(text: $searchText, prompt: "搜索标题、作者或贴吧")
         .refreshable { await checkAllUpdates(showsResult: false) }
         .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
+            ToolbarItem(placement: .navigationBarTrailing) {
                 Menu {
                     Button {
                         Task { await checkAllUpdates(showsResult: true) }
@@ -451,7 +451,7 @@ struct SavedThreadDetailView: View {
         .navigationTitle(snapshot.forum.displayName)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
+            ToolbarItem(placement: .navigationBarTrailing) {
                 ShareLink(item: threadURL) {
                     Image(systemName: "square.and.arrow.up")
                 }
@@ -727,7 +727,7 @@ private struct SavedSubpostsView: View {
     let threadAuthorID: Int64?
 
     var body: some View {
-        NavigationStack {
+        CompatibleNavigationContainer {
             ScrollView {
                 LazyVStack(spacing: 0) {
                     ForEach(subposts) { subpost in
@@ -740,7 +740,7 @@ private struct SavedSubpostsView: View {
             .navigationTitle(SubpostSheetTitle.text(floor: post.floor, count: subposts.count))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItem(placement: .navigationBarTrailing) {
                     Button("完成") { dismiss() }
                 }
             }

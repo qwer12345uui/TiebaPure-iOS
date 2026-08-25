@@ -85,7 +85,7 @@ private struct OpenSourceLicenseView: View {
         .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
+            ToolbarItem(placement: .navigationBarTrailing) {
                 Button {
                     openURL(fallbackURL)
                 } label: {

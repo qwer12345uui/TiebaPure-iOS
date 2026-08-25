@@ -4,7 +4,7 @@
 [![License](https://img.shields.io/badge/license-GPL--3.0--only-blue)](LICENSE)
 [![Release](https://img.shields.io/github/v/release/infinityf4p/TiebaPure-iOS)](https://github.com/infinityf4p/TiebaPure-iOS/releases/latest)
 
-基于 SwiftUI 的第三方百度贴吧客户端，支持 iOS 16.4 及更高版本。
+基于 SwiftUI 的第三方百度贴吧客户端，**最低支持 iOS 15.0**；在 iOS 16 及更高版本保留现代导航体验，在 iOS 15 自动使用兼容导航回退。
 
 ## 截图
 
@@ -50,7 +50,7 @@
 
 ## 构建
 
-已验证的开发环境为 Xcode 26.6、iOS 16.4 与 iOS 26.5 模拟器和 XcodeGen 2.45.x；App 最低支持 iOS 16.4。
+已验证的开发环境为 Xcode 26.6、XcodeGen 2.45.x 与 iOS 26.5 模拟器；工程和发布包均以 **iOS 15.0** 为最低部署目标。持续集成会在 iOS 15.0 部署目标下编译主应用和扩展，并在可用的最新模拟器运行单元测试与界面冒烟测试。
 
 ```bash
 xcodegen generate --spec project.yml

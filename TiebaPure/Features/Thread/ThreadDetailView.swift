@@ -179,13 +179,13 @@ struct ThreadDetailView: View {
 
     private var navigationContent: some View {
         decoratedContent
-            .navigationDestination(isPresented: $isSearchActive) {
+            .compatibleNavigationDestination(isPresented: $isSearchActive) {
                 SearchResultsView(account: account, scope: searchScope, initialKeyword: "")
                     .interactiveNavigationPopStateSync {
                         isSearchActive = false
                     }
             }
-            .navigationDestination(isPresented: selectedUserIsActive) {
+            .compatibleNavigationDestination(isPresented: selectedUserIsActive) {
                 if let selectedUser {
                     UserProfileView(
                         account: account,
@@ -198,7 +198,7 @@ struct ThreadDetailView: View {
                     }
                 }
             }
-            .navigationDestination(isPresented: selectedForumIsActive) {
+            .compatibleNavigationDestination(isPresented: selectedForumIsActive) {
                 if let selectedForum {
                     ForumThreadsView(account: account, forum: selectedForum)
                         .interactiveNavigationPopStateSync {
@@ -733,7 +733,7 @@ struct ThreadDetailView: View {
         ToolbarItem(placement: .principal) {
             forumToolbarTitle
         }
-        ToolbarItemGroup(placement: .topBarTrailing) {
+        ToolbarItemGroup(placement: .navigationBarTrailing) {
             favoriteToolbarButton
             searchToolbarButton
             moreToolbarMenu
@@ -2822,7 +2822,7 @@ private struct SubpostListSheet: View {
             isEnabled: selectedUser == nil,
             onDismiss: onInteractiveDismiss
         ) {
-            NavigationStack {
+            CompatibleNavigationContainer {
                 Group {
                 if isLoading && didLoad == false {
                     ReaderStateView.loading("加载回复")
@@ -2966,11 +2966,11 @@ private struct SubpostListSheet: View {
                 // of the sheet root for the middle-screen interactive return.
                 .interactiveNavigationPopRevealSource()
                 .toolbar {
-                    ToolbarItem(placement: .topBarTrailing) {
+                    ToolbarItem(placement: .navigationBarTrailing) {
                         SubpostSheetDismissButton()
                     }
                 }
-                .navigationDestination(isPresented: selectedUserIsActive) {
+                .compatibleNavigationDestination(isPresented: selectedUserIsActive) {
                     if let selectedUser {
                         UserProfileView(
                             account: account,
@@ -3448,9 +3448,7 @@ private extension View {
                 .presentationBackground(.clear)
                 .interactiveDismissDisabled()
         } else {
-            presentationDetents([.large])
-                .presentationDragIndicator(.hidden)
-                .interactiveDismissDisabled()
+            interactiveDismissDisabled()
         }
     }
 }

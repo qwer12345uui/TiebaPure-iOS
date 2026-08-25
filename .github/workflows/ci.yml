@@ -47,7 +47,7 @@ jobs:
             test -only-testing:TiebaPureTests \
             -skip-testing:TiebaPureTests/AnonymousLiveSmokeTests
 
-      - name: Verify iOS 16 compatibility linkage
+      - name: Verify iOS 15 compatibility linkage
         run: |
           APP="$DERIVED_DATA/Build/Products/Debug-iphonesimulator/TiebaPure.app"
           APP_BINARY="$APP/TiebaPure.debug.dylib"
@@ -59,7 +59,17 @@ jobs:
             test -f "$binary"
             load_commands="$(otool -l "$binary" | awk '/cmd LC_LOAD/{command=$2} /SwiftData.framework/{print command}' | sort -u)"
             test "$load_commands" = LC_LOAD_WEAK_DYLIB
-          done
+
+      - name: Build against the iOS 15 deployment target
+        run: |
+          xcodebuild -project TiebaPure.xcodeproj -scheme TiebaPure \
+            -configuration Debug -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath "$DERIVED_DATA" \
+            build CODE_SIGNING_ALLOWED=NO
+          APP="$DERIVED_DATA/Build/Products/Debug-iphonesimulator/TiebaPure.app"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :MinimumOSVersion' "$APP/Info.plist")" = 15.0
+          test "$(/usr/libexec/PlistBuddy -c 'Print :MinimumOSVersion' "$APP/PlugIns/TiebaPureOpenIn.appex/Info.plist")" = 15.0
 
       - name: Reset simulator for UI smoke tests
         run: |
@@ -115,8 +125,8 @@ jobs:
             -derivedDataPath "$DERIVED_DATA" \
             build CODE_SIGNING_ALLOWED=NO
           APP="$DERIVED_DATA/Build/Products/Release-iphoneos/TiebaPure.app"
-          test "$(/usr/libexec/PlistBuddy -c 'Print :MinimumOSVersion' "$APP/Info.plist")" = 16.4
-          test "$(/usr/libexec/PlistBuddy -c 'Print :MinimumOSVersion' "$APP/PlugIns/TiebaPureOpenIn.appex/Info.plist")" = 16.4
+          test "$(/usr/libexec/PlistBuddy -c 'Print :MinimumOSVersion' "$APP/Info.plist")" = 15.0
+          test "$(/usr/libexec/PlistBuddy -c 'Print :MinimumOSVersion' "$APP/PlugIns/TiebaPureOpenIn.appex/Info.plist")" = 15.0
           load_commands="$(otool -l "$APP/TiebaPure" | awk '/cmd LC_LOAD/{command=$2} /SwiftData.framework/{print command}' | sort -u)"
           test "$load_commands" = LC_LOAD_WEAK_DYLIB
           test -f "$APP/PrivacyInfo.xcprivacy"
