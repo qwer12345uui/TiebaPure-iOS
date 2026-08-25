@@ -118,8 +118,8 @@ struct ThreadFavoritesView: View {
 
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
-        if isEditing {
-            ToolbarItem(placement: .navigationBarLeading) {
+        ToolbarItem(placement: .navigationBarLeading) {
+            if isEditing {
                 Button(allVisibleFavoritesAreSelected ? "取消全选" : "全选") {
                     selectedThreadIDs = LocalThreadListSelectionPolicy
                         .selectionByTogglingAll(
@@ -129,11 +129,13 @@ struct ThreadFavoritesView: View {
                 }
                 .disabled(visibleFavorites.isEmpty)
                 .accessibilityIdentifier("thread-favorites-select-all")
+            } else {
+                EmptyView()
             }
         }
 
-        if isEditing == false, libraryStore.readingPositions.isEmpty == false {
-            ToolbarItem(placement: .navigationBarTrailing) {
+        ToolbarItem(placement: .navigationBarTrailing) {
+            if isEditing == false, libraryStore.readingPositions.isEmpty == false {
                 Menu {
                     Button(role: .destructive) {
                         showsClearReadingPositionsConfirmation = true
@@ -147,14 +149,18 @@ struct ThreadFavoritesView: View {
                 .accessibilityLabel("管理本机帖子记录")
                 .accessibilityHint("清除本机保存的阅读位置")
                 .accessibilityIdentifier("thread-library-manage")
+            } else {
+                EmptyView()
             }
         }
 
-        if visibleFavorites.isEmpty == false || isEditing {
-            ToolbarItem(placement: .navigationBarTrailing) {
+        ToolbarItem(placement: .navigationBarTrailing) {
+            if visibleFavorites.isEmpty == false || isEditing {
                 EditButton()
                     .minTouchTarget()
                     .accessibilityIdentifier("thread-favorites-edit")
+            } else {
+                EmptyView()
             }
         }
     }

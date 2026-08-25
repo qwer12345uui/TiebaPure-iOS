@@ -310,3 +310,17 @@ private struct CompatibleActivitySheet: UIViewControllerRepresentable {
 
     func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }
+
+
+extension View {
+    /// Hides the tab bar where SwiftUI exposes the per-bar toolbar API. iOS 15
+    /// keeps the default behavior rather than calling an unavailable modifier.
+    @ViewBuilder
+    func compatibleTabBarHidden() -> some View {
+        if #available(iOS 16.0, *) {
+            toolbar(.hidden, for: .tabBar)
+        } else {
+            self
+        }
+    }
+}

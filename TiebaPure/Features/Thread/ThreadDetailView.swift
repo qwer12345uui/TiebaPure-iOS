@@ -339,7 +339,7 @@ struct ThreadDetailView: View {
                       event.threadID == threadID else { return }
                 hasUnconfirmedOwnThreadDeletion = event.outcome == .needsRefresh
             }
-            .toolbar(.hidden, for: .tabBar)
+            .compatibleTabBarHidden()
             .onAppear(perform: handleAppear)
             .onDisappear(perform: handleDisappear)
     }
