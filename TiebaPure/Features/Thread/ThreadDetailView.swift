@@ -1550,7 +1550,7 @@ struct ThreadDetailView: View {
         }
         preciseScrollTimeoutTask = Task { @MainActor in
             do {
-                try await Task.sleep(for: .milliseconds(1_500))
+                try await Task.sleep(nanoseconds: 1_500_000_000)
             } catch {
                 return
             }
@@ -1691,7 +1691,7 @@ struct ThreadDetailView: View {
                 }
             }
             do {
-                try await Task.sleep(for: ThreadReadingPersistencePolicy.idleDelay)
+                try await Task.sleep(nanoseconds: ThreadReadingPersistencePolicy.idleDelayNanoseconds)
             } catch {
                 return
             }
@@ -2246,7 +2246,7 @@ enum ThreadReadingPositionRequest: Equatable, Sendable {
 enum ThreadReadingPersistencePolicy {
     // A short quiet period keeps SwiftData work out of repeated flicks while
     // still persisting promptly when the reader pauses.
-    static let idleDelay: Duration = .milliseconds(250)
+    static let idleDelayNanoseconds: UInt64 = 250_000_000
 
     static func intent(
         scrollRegion: ThreadReadingScrollRegion,

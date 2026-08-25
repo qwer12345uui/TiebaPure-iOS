@@ -778,6 +778,7 @@ struct ImagePreviewSourceAnchorReader: UIViewRepresentable {
         }
     }
 
+    @available(iOS 16.0, *)
     func sizeThatFits(
         _ proposal: ProposedViewSize,
         uiView: ImagePreviewSourceView,

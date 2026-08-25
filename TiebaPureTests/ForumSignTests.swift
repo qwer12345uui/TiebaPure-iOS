@@ -202,7 +202,7 @@ final class ForumSignTests: XCTestCase {
         let coordinator = ForumSignCoordinator(
             api: api,
             settings: settings,
-            requestSpacing: .zero
+            requestSpacingNanoseconds: 0
         )
 
         let summary = await coordinator.signAllFollowedForums(account: account)
@@ -226,7 +226,7 @@ final class ForumSignTests: XCTestCase {
         let coordinator = ForumSignCoordinator(
             api: FixtureTiebaAPI(scenario: .success),
             settings: settings,
-            requestSpacing: .zero
+            requestSpacingNanoseconds: 0
         )
 
         await coordinator.signAutomaticallyIfNeeded(account: account)
@@ -251,7 +251,7 @@ final class ForumSignTests: XCTestCase {
         let coordinator = ForumSignCoordinator(
             api: FixtureTiebaAPI(scenario: .signFailure),
             settings: settings,
-            requestSpacing: .zero
+            requestSpacingNanoseconds: 0
         )
 
         let summary = await coordinator.signAllFollowedForums(account: account)
@@ -272,7 +272,7 @@ final class ForumSignTests: XCTestCase {
         let coordinator = ForumSignCoordinator(
             api: api,
             settings: settings,
-            requestSpacing: .zero
+            requestSpacingNanoseconds: 0
         )
         let replacement = Account(
             uid: "84",
@@ -312,7 +312,7 @@ final class ForumSignTests: XCTestCase {
         let coordinator = ForumSignCoordinator(
             api: FixtureTiebaAPI(scenario: .success, delayMilliseconds: 40),
             settings: ForumSignSettingsStore(defaults: defaults),
-            requestSpacing: .zero
+            requestSpacingNanoseconds: 0
         )
 
         let first = Task { @MainActor in
@@ -341,13 +341,13 @@ final class ForumSignTests: XCTestCase {
         let coordinator = ForumSignCoordinator(
             api: FixtureTiebaAPI(scenario: .success),
             settings: settings,
-            requestSpacing: .milliseconds(500)
+            requestSpacingNanoseconds: 500_000_000
         )
         let run = Task { @MainActor in
             await coordinator.signAllFollowedForums(account: account)
         }
 
-        try await Task.sleep(for: .milliseconds(100))
+        try await Task.sleep(nanoseconds: 100_000_000)
         await coordinator.beginInvalidation(session: account.sessionIdentity)
         let summary = await run.value
 
@@ -373,7 +373,7 @@ final class ForumSignTests: XCTestCase {
         let coordinator = ForumSignCoordinator(
             api: FixtureTiebaAPI(scenario: .success),
             settings: settings,
-            requestSpacing: .milliseconds(500)
+            requestSpacingNanoseconds: 500_000_000
         )
         let accountStore = AccountStore(service: MemoryAccountStoreService())
         try await accountStore.save(account)
@@ -394,7 +394,7 @@ final class ForumSignTests: XCTestCase {
         let run = Task { @MainActor in
             await coordinator.signAllFollowedForums(account: account)
         }
-        try await Task.sleep(for: .milliseconds(100))
+        try await Task.sleep(nanoseconds: 100_000_000)
 
         try await logout.logOut()
         let summary = await run.value

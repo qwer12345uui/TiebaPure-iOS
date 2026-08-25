@@ -16,7 +16,6 @@ struct ContentComposerView: View {
     @State private var bodyText: String
     @State private var attachments: [ContentSubmissionImage]
     @State private var savedSnapshot: ContentComposerSnapshot
-    @State private var photoSelection: [PhotosPickerItem] = []
     @State private var photoLoadingTask: Task<Void, Never>?
     @State private var photoLoadProgress: (completed: Int, total: Int)?
     @State private var attachmentErrorMessage: String?
@@ -131,9 +130,6 @@ struct ContentComposerView: View {
                 onAttempt: requestClose,
                 onDismissed: onCancel
             )
-        }
-        .compatibleOnChange(of: photoSelection) { _, newValue in
-            preparePhotoSelection(newValue)
         }
         .onDisappear {
             photoLoadingTask?.cancel()
@@ -393,16 +389,18 @@ struct ContentComposerView: View {
         if target.kind == .newThread {
             EmptyView()
         } else if remaining > 0 {
-            PhotosPicker(
-                selection: $photoSelection,
-                maxSelectionCount: remaining,
-                matching: .images,
-                preferredItemEncoding: .current
-            ) {
-                Label("图片", systemImage: "photo.on.rectangle.angled")
-                    .frame(minHeight: 44)
-                    .padding(.horizontal, 8)
-                    .contentShape(Rectangle())
+            Group {
+                if #available(iOS 16.0, *) {
+                    ModernContentComposerPhotoPicker(
+                        maximumSelectionCount: remaining,
+                        onSelection: preparePhotoData
+                    )
+                } else {
+                    LegacyContentComposerPhotoPicker(
+                        maximumSelectionCount: remaining,
+                        onSelection: preparePhotoData
+                    )
+                }
             }
             .disabled(isBusy || photoLoadProgress != nil)
             .accessibilityHint("还可添加 \(remaining) 张")
@@ -582,16 +580,15 @@ struct ContentComposerView: View {
         onCancel()
     }
 
-    private func preparePhotoSelection(_ selection: [PhotosPickerItem]) {
-        guard selection.isEmpty == false else { return }
+    private func preparePhotoData(_ selectedData: [Data]) {
+        guard selectedData.isEmpty == false else { return }
         photoLoadingTask?.cancel()
 
         let remaining = ContentComposerPolicy.remainingImageSlots(
             currentCount: attachments.count,
             kind: target.kind
         )
-        let items = Array(selection.prefix(remaining))
-        photoSelection = []
+        let items = Array(selectedData.prefix(remaining))
         guard items.isEmpty == false else { return }
 
         attachmentErrorMessage = nil
@@ -600,12 +597,9 @@ struct ContentComposerView: View {
             var prepared: [ContentSubmissionImage] = []
             var firstErrorMessage: String?
 
-            for (index, item) in items.enumerated() {
+            for (index, data) in items.enumerated() {
                 guard Task.isCancelled == false else { return }
                 do {
-                    guard let data = try await item.loadTransferable(type: Data.self) else {
-                        throw ContentSubmissionValidationError.invalidImage
-                    }
                     let image = try await Task.detached(priority: .userInitiated) {
                         try ContentComposerImageDecoder.decode(data)
                     }.value
@@ -638,6 +632,105 @@ struct ContentComposerView: View {
         attachmentErrorMessage = nil
         if submissionState.didSucceed == false {
             submissionState = .idle
+        }
+    }
+}
+
+@available(iOS 16.0, *)
+private struct ModernContentComposerPhotoPicker: View {
+    let maximumSelectionCount: Int
+    let onSelection: ([Data]) -> Void
+    @State private var selection: [PhotosPickerItem] = []
+
+    var body: some View {
+        PhotosPicker(
+            selection: $selection,
+            maxSelectionCount: maximumSelectionCount,
+            matching: .images,
+            preferredItemEncoding: .current
+        ) {
+            pickerLabel
+        }
+        .compatibleOnChange(of: selection) { _, items in
+            load(items)
+        }
+    }
+
+    private var pickerLabel: some View {
+        Label("图片", systemImage: "photo.on.rectangle.angled")
+            .frame(minHeight: 44)
+            .padding(.horizontal, 8)
+            .contentShape(Rectangle())
+    }
+
+    private func load(_ items: [PhotosPickerItem]) {
+        guard items.isEmpty == false else { return }
+        selection = []
+        Task {
+            var dataItems: [Data] = []
+            for item in items {
+                guard Task.isCancelled == false else { return }
+                if let data = try? await item.loadTransferable(type: Data.self) {
+                    dataItems.append(data)
+                }
+            }
+            guard Task.isCancelled == false else { return }
+            onSelection(dataItems)
+        }
+    }
+}
+
+private struct LegacyContentComposerPhotoPicker: UIViewControllerRepresentable {
+    let maximumSelectionCount: Int
+    let onSelection: ([Data]) -> Void
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(onSelection: onSelection)
+    }
+
+    func makeUIViewController(context: Context) -> PHPickerViewController {
+        var configuration = PHPickerConfiguration(photoLibrary: .shared())
+        configuration.filter = .images
+        configuration.selectionLimit = maximumSelectionCount
+        return PHPickerViewController(configuration: configuration)
+    }
+
+    func updateUIViewController(_ uiViewController: PHPickerViewController, context: Context) {
+        context.coordinator.onSelection = onSelection
+    }
+
+    final class Coordinator: NSObject, PHPickerViewControllerDelegate {
+        var onSelection: ([Data]) -> Void
+
+        init(onSelection: @escaping ([Data]) -> Void) {
+            self.onSelection = onSelection
+        }
+
+        func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
+            picker.dismiss(animated: true)
+            Task {
+                var dataItems: [Data] = []
+                for result in results {
+                    guard Task.isCancelled == false else { return }
+                    if let data = try? await loadData(from: result.itemProvider) {
+                        dataItems.append(data)
+                    }
+                }
+                guard Task.isCancelled == false else { return }
+                onSelection(dataItems)
+            }
+        }
+
+        private func loadData(from provider: NSItemProvider) async throws -> Data {
+            try await withCheckedThrowingContinuation { continuation in
+                provider.loadDataRepresentation(forTypeIdentifier: UTType.image.identifier) { data, error in
+                    if let data {
+                        continuation.resume(returning: data)
+                    } else {
+                        continuation.resume(throwing: error ?? ContentSubmissionValidationError.invalidImage)
+                    }
+                }
+            }
         }
     }
 }

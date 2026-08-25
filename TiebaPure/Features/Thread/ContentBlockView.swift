@@ -1179,6 +1179,7 @@ struct InlineContentText: UIViewRepresentable {
         )
     }
 
+    @available(iOS 16.0, *)
     func sizeThatFits(
         _ proposal: ProposedViewSize,
         uiView: InlineContentTextView,

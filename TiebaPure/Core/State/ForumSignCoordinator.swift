@@ -14,7 +14,7 @@ final class ForumSignCoordinator: ObservableObject {
 
     private let api: any TiebaAPIService
     private let settings: ForumSignSettingsStore
-    private let requestSpacing: Duration
+    private let requestSpacingNanoseconds: UInt64
     private struct RunOutcome {
         let summary: ForumSignRunSummary
         let errorMessage: String?
@@ -34,11 +34,11 @@ final class ForumSignCoordinator: ObservableObject {
     init(
         api: any TiebaAPIService,
         settings: ForumSignSettingsStore,
-        requestSpacing: Duration = .milliseconds(350)
+        requestSpacingNanoseconds: UInt64 = 350_000_000
     ) {
         self.api = api
         self.settings = settings
-        self.requestSpacing = requestSpacing
+        self.requestSpacingNanoseconds = requestSpacingNanoseconds
     }
 
     /// Signs every followed forum. Concurrent invocations from the same login
@@ -58,14 +58,14 @@ final class ForumSignCoordinator: ObservableObject {
         presentationSession = session
         lastError = nil
         let runID = UUID()
-        let task = Task { @MainActor [api, settings, requestSpacing] in
+        let task = Task { @MainActor [api, settings, requestSpacingNanoseconds] in
             var summary = ForumSignRunSummary.empty
             do {
                 let forums = try await api.followedForums(account: account)
                 try Task.checkCancellation()
                 for (index, forum) in forums.enumerated() {
                     if index > 0 {
-                        try await Task.sleep(for: requestSpacing)
+                        try await Task.sleep(nanoseconds: requestSpacingNanoseconds)
                     }
                     do {
                         try Task.checkCancellation()
