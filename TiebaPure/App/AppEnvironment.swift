@@ -357,7 +357,7 @@ final class AppEnvironment: ObservableObject {
         let forumSignCoordinator = ForumSignCoordinator(
             api: api,
             settings: forumSignSettingsStore,
-            requestSpacing: .zero
+            requestSpacingNanoseconds: 0
         )
         let draftStore = ContentDraftStore()
         if ProcessInfo.processInfo.arguments.contains("UITEST_RESET_CONTENT_SUBMISSION") {

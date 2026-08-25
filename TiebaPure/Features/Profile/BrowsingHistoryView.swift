@@ -44,41 +44,7 @@ struct BrowsingHistoryView: View {
             placement: .navigationBarDrawer(displayMode: .automatic),
             prompt: "搜索标题、作者或贴吧"
         )
-        .toolbar {
-            if isEditing {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button(allVisibleEntriesAreSelected ? "取消全选" : "全选") {
-                        selectedThreadIDs = LocalThreadListSelectionPolicy
-                            .selectionByTogglingAll(
-                                selectedThreadIDs,
-                                visibleThreadIDs: visibleThreadIDs
-                            )
-                    }
-                    .disabled(visibleEntries.isEmpty)
-                    .accessibilityIdentifier("browsing-history-select-all")
-                }
-            }
-
-            if isEditing == false, historyStore.items.isEmpty == false {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("清空") {
-                        showsClearConfirmation = true
-                    }
-                    .minTouchTarget()
-                    .accessibilityLabel("清空全部浏览历史")
-                    .accessibilityIdentifier("browsing-history-clear-all")
-                }
-            }
-
-            if visibleEntries.isEmpty == false || isEditing {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    EditButton()
-                        .minTouchTarget()
-                        .accessibilityIdentifier("browsing-history-edit")
-                }
-            }
-
-        }
+        .toolbar { browsingHistoryToolbarContent }
         .safeAreaInset(edge: .bottom, spacing: 0) {
             selectionBar
         }
@@ -145,12 +111,7 @@ struct BrowsingHistoryView: View {
             }
         }
         .compatibleOnChange(of: blocklistStore.entries) { _, _ in
-            guard let activeEntry,
-                  BrowsingHistoryListPolicy.shouldKeep(
-                    activeEntry,
-                    blocklist: currentBlocklist
-                  ) == false else { return }
-            self.activeEntry = nil
+            handleBlocklistChanged()
         }
         .compatibleOnChange(of: scenePhase) { _, phase in
             if phase == .active {
@@ -161,6 +122,57 @@ struct BrowsingHistoryView: View {
             dateFilterReferenceDate = Date()
         }
         .fullScreenInteractiveNavigationPop()
+    }
+
+    @ToolbarContentBuilder
+    private var browsingHistoryToolbarContent: some ToolbarContent {
+        ToolbarItem(placement: .navigationBarLeading) {
+            if isEditing {
+                Button(allVisibleEntriesAreSelected ? "取消全选" : "全选") {
+                    selectedThreadIDs = LocalThreadListSelectionPolicy
+                        .selectionByTogglingAll(
+                            selectedThreadIDs,
+                            visibleThreadIDs: visibleThreadIDs
+                        )
+                }
+                .disabled(visibleEntries.isEmpty)
+                .accessibilityIdentifier("browsing-history-select-all")
+            } else {
+                EmptyView()
+            }
+        }
+
+        ToolbarItem(placement: .navigationBarTrailing) {
+            if isEditing == false, historyStore.items.isEmpty == false {
+                Button("清空") {
+                    showsClearConfirmation = true
+                }
+                .minTouchTarget()
+                .accessibilityLabel("清空全部浏览历史")
+                .accessibilityIdentifier("browsing-history-clear-all")
+            } else {
+                EmptyView()
+            }
+        }
+
+        ToolbarItem(placement: .navigationBarTrailing) {
+            if visibleEntries.isEmpty == false || isEditing {
+                EditButton()
+                    .minTouchTarget()
+                    .accessibilityIdentifier("browsing-history-edit")
+            } else {
+                EmptyView()
+            }
+        }
+    }
+
+    private func handleBlocklistChanged() {
+        guard let activeEntry,
+              BrowsingHistoryListPolicy.shouldKeep(
+                activeEntry,
+                blocklist: currentBlocklist
+              ) == false else { return }
+        self.activeEntry = nil
     }
 
     @ViewBuilder

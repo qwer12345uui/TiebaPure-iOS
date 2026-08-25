@@ -27,7 +27,7 @@ struct CompatibleUnavailableView: View {
         } else {
             VStack(spacing: TiebaPureTheme.Spacing.sm) {
                 Image(systemName: systemImage)
-                    .font(.system(.largeTitle, design: .rounded, weight: .regular))
+                    .font(.system(.largeTitle, weight: .regular))
                     .foregroundStyle(.secondary)
 
                 Text(title)
