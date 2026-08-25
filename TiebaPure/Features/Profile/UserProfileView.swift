@@ -65,40 +65,48 @@ struct UserProfileView: View {
     @State private var showsProfileEditor = false
     @State private var pendingProfileEditRequest: UserProfileEditRequest?
 
-    var body: some View {
-        Group {
-            if isLoadingProfile, profile == nil {
-                ReaderStateView.loading("正在加载用户资料")
-            } else if let profileError, profile == nil {
-                ReaderStateScrollView(refresh: { await reload() }) {
-                    ReaderStateView.error(message: profileError) {
-                        Task { await reload() }
-                    }
+    @ViewBuilder
+    private var profileContent: some View {
+        if isLoadingProfile, profile == nil {
+            ReaderStateView.loading("正在加载用户资料")
+        } else if let profileError, profile == nil {
+            ReaderStateScrollView(refresh: { await reload() }) {
+                ReaderStateView.error(message: profileError) {
+                    Task { await reload() }
                 }
-            } else if let profile {
-                profileScrollView(profile)
+            }
+        } else if let profile {
+            profileScrollView(profile)
+        } else {
+            ReaderStateView.empty(title: "无法显示用户资料", message: "请稍后重试。")
+        }
+    }
+
+    @ToolbarContentBuilder
+    private var profileToolbarContent: some ToolbarContent {
+        ToolbarItem(placement: .navigationBarTrailing) {
+            // Do not expose the destructive block action while identity is
+            // still unknown; a fast tap used to allow blocking oneself.
+            if let profile, profile.isCurrentUser == false {
+                Menu {
+                    blockToggleButton
+                } label: {
+                    Image(systemName: "ellipsis")
+                }
+                .accessibilityLabel("更多")
             } else {
-                ReaderStateView.empty(title: "无法显示用户资料", message: "请稍后重试。")
+                EmptyView()
             }
         }
+    }
+
+    var body: some View {
+        profileContent
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(TiebaPureTheme.ColorToken.readerGroupedBackground)
         .navigationTitle("用户主页")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            // Do not expose the destructive block action while identity is
-            // still unknown; a fast tap used to allow blocking oneself.
-            if let profile, profile.isCurrentUser == false {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Menu {
-                        blockToggleButton
-                    } label: {
-                        Image(systemName: "ellipsis")
-                    }
-                    .accessibilityLabel("更多")
-                }
-            }
-        }
+        .toolbar { profileToolbarContent }
         .alert("提示", isPresented: userActionErrorIsPresented) {
             Button("好", role: .cancel) {
                 userActionError = nil
