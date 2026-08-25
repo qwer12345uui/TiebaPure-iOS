@@ -59,6 +59,7 @@ jobs:
             test -f "$binary"
             load_commands="$(otool -l "$binary" | awk '/cmd LC_LOAD/{command=$2} /SwiftData.framework/{print command}' | sort -u)"
             test "$load_commands" = LC_LOAD_WEAK_DYLIB
+          done
 
       - name: Build against the iOS 15 deployment target
         run: |
