@@ -492,7 +492,7 @@ struct SearchResultsView: View {
     }
 
     private var controls: some View {
-        ViewThatFits(in: .horizontal) {
+        CompatibleViewThatFits {
             HStack(alignment: .center, spacing: TiebaPureTheme.Spacing.sm) {
                 filterPicker
                 Spacer(minLength: TiebaPureTheme.Spacing.sm)
@@ -504,6 +504,7 @@ struct SearchResultsView: View {
                 maxHeight: SearchResultsControlsLayout.controlHeight,
                 alignment: .center
             )
+        } fallback: {
             VStack(alignment: .leading, spacing: TiebaPureTheme.Spacing.xs) {
                 filterPicker
                 sortMenu

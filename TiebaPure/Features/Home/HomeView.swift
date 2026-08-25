@@ -548,7 +548,7 @@ struct HomeView: View {
             .frame(maxWidth: .infinity)
             .contentShape(Rectangle())
         }
-        .scrollBounceBehavior(.always, axes: .vertical)
+        .compatibleAlwaysVerticalScrollBounce()
         .accessibilityIdentifier("home-feed-scroll-view")
         .shortPullRefresh(
             isEnabled: didLoad && isLoading == false,

@@ -2573,12 +2573,13 @@ private struct ReplyControlBar: View {
     let onSortChange: (ThreadReplySort) -> Void
 
     var body: some View {
-        ViewThatFits(in: .horizontal) {
+        CompatibleViewThatFits {
             HStack(spacing: TiebaPureTheme.Spacing.sm) {
                 filterControls
                 Spacer(minLength: TiebaPureTheme.Spacing.sm)
                 sortControls
             }
+        } fallback: {
             VStack(alignment: .leading, spacing: TiebaPureTheme.Spacing.xs) {
                 filterControls
                 sortControls
@@ -2599,7 +2600,7 @@ private struct ReplyControlBar: View {
     }
 
     private var filterControls: some View {
-        ViewThatFits(in: .horizontal) {
+        CompatibleViewThatFits {
             HStack(spacing: TiebaPureTheme.Spacing.md) {
                 filterButton(title: "全部回复", isSelected: seeLz == false) {
                     onSeeLzChange(false)
@@ -2609,6 +2610,7 @@ private struct ReplyControlBar: View {
                     onSeeLzChange(true)
                 }
             }
+        } fallback: {
             VStack(alignment: .leading, spacing: TiebaPureTheme.Spacing.xxs) {
                 filterButton(title: "全部回复", isSelected: seeLz == false) {
                     onSeeLzChange(false)
@@ -2622,7 +2624,7 @@ private struct ReplyControlBar: View {
     }
 
     private var sortControls: some View {
-        ViewThatFits(in: .horizontal) {
+        CompatibleViewThatFits {
             HStack(spacing: 0) {
                 ForEach(ThreadReplySort.allCases) { item in
                     sortButton(item)
@@ -2633,6 +2635,7 @@ private struct ReplyControlBar: View {
                 Capsule(style: .continuous)
                     .fill(TiebaPureTheme.ColorToken.readerGroupedBackground)
             )
+        } fallback: {
             VStack(alignment: .leading, spacing: TiebaPureTheme.Spacing.xxs) {
                 ForEach(ThreadReplySort.allCases) { item in
                     sortButton(item)

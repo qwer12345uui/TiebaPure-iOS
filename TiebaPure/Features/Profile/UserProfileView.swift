@@ -1276,11 +1276,12 @@ private struct UserProfileHeader: View {
 
     private var identitySummary: some View {
         VStack(alignment: .leading, spacing: TiebaPureTheme.Spacing.xxs) {
-            ViewThatFits(in: .horizontal) {
+            CompatibleViewThatFits {
                 HStack(alignment: .center, spacing: TiebaPureTheme.Spacing.xs) {
                     profileName
                     levelBadge
                 }
+            } fallback: {
                 VStack(alignment: .leading, spacing: TiebaPureTheme.Spacing.xxs) {
                     profileName
                     levelBadge
@@ -1302,10 +1303,11 @@ private struct UserProfileHeader: View {
 
     @ViewBuilder
     private var profileStats: some View {
-        ViewThatFits(in: .horizontal) {
+        CompatibleViewThatFits {
             HStack(spacing: TiebaPureTheme.Spacing.md) {
                 profileStatViews
             }
+        } fallback: {
             VStack(alignment: .leading, spacing: TiebaPureTheme.Spacing.xxs) {
                 profileStatViews
             }

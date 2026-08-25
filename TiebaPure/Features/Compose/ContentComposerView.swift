@@ -352,14 +352,14 @@ struct ContentComposerView: View {
     }
 
     private var actionBar: some View {
-        ViewThatFits(in: .horizontal) {
+        CompatibleViewThatFits {
             HStack(spacing: 4) {
                 mediaButton
                 emoticonButton
                 Spacer(minLength: 8)
                 draftButton
             }
-
+        } fallback: {
             VStack(spacing: 4) {
                 HStack(spacing: 4) {
                     mediaButton

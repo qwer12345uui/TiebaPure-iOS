@@ -3977,11 +3977,13 @@ struct FullScreenImageView: View {
         Group {
             if dynamicTypeSize.isAccessibilitySize {
                 stackedBottomBar
-            } else {
+            } else if #available(iOS 16.0, *) {
                 ViewThatFits(in: .horizontal) {
                     compactBottomBar
                     stackedBottomBar
                 }
+            } else {
+                compactBottomBar
             }
         }
         .foregroundStyle(.white)
@@ -4081,9 +4083,15 @@ struct FullScreenImageView: View {
     @ViewBuilder
     private var originalButtonLabel: some View {
         if currentOriginalLoadState == .loading {
-            Text(originalImageButtonTitle)
-                .fontDesign(.monospaced)
-                .lineLimit(1)
+            if #available(iOS 16.1, *) {
+                Text(originalImageButtonTitle)
+                    .fontDesign(.monospaced)
+                    .lineLimit(1)
+            } else {
+                Text(originalImageButtonTitle)
+                    .font(.body.monospaced())
+                    .lineLimit(1)
+            }
         } else if dynamicTypeSize.isAccessibilitySize {
             VStack(spacing: TiebaPureTheme.Spacing.xs) {
                 originalButtonStatusIcon

@@ -212,3 +212,60 @@ extension View {
         }
     }
 }
+
+
+extension View {
+    /// Uses size-based scroll bounce only where the API is available; iOS 15
+    /// keeps UIKit's default scroll behavior.
+    @ViewBuilder
+    func compatibleScrollBounceBehaviorBasedOnSize() -> some View {
+        if #available(iOS 16.4, *) {
+            scrollBounceBehavior(.basedOnSize)
+        } else {
+            self
+        }
+    }
+}
+
+
+extension View {
+    /// Keeps the preferred vertical bounce behavior on iOS 16.4 and later.
+    /// Earlier releases use their native scroll-view defaults.
+    @ViewBuilder
+    func compatibleAlwaysVerticalScrollBounce() -> some View {
+        if #available(iOS 16.4, *) {
+            scrollBounceBehavior(.always, axes: .vertical)
+        } else {
+            self
+        }
+    }
+}
+
+
+/// Preserves `ViewThatFits` selection on iOS 16 and later. On iOS 15 the
+/// caller-provided primary layout remains visible, while the fallback layout is
+/// intentionally omitted instead of rendering two conflicting control groups.
+struct CompatibleViewThatFits<Primary: View, Fallback: View>: View {
+    private let primary: () -> Primary
+    private let fallback: () -> Fallback
+
+    init(
+        @ViewBuilder primary: @escaping () -> Primary,
+        @ViewBuilder fallback: @escaping () -> Fallback
+    ) {
+        self.primary = primary
+        self.fallback = fallback
+    }
+
+    @ViewBuilder
+    var body: some View {
+        if #available(iOS 16.0, *) {
+            ViewThatFits(in: .horizontal) {
+                primary()
+                fallback()
+            }
+        } else {
+            primary()
+        }
+    }
+}
